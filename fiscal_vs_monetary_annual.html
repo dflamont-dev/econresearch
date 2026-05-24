@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fiscal vs Monetary Stimulus 2020–2024</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1117;--s1:#161b25;--s2:#1c2130;
+  --brd:rgba(255,255,255,0.08);
+  --txt:#dfe3ec;--mut:#6b7280;--dim:#252d3d;
+  --fiscal:#5b9bd5;--monetary:#e8b84b;
+  --ca:#e05c4b;--us:#5b9bd5;--uk:#c07acc;--au:#4bbf8e;--nz:#e8b84b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:'Source Sans 3',sans-serif;font-size:14px;padding:36px 44px 44px;}
+h1{font-family:'Playfair Display',serif;font-size:28px;line-height:1.15;margin-bottom:6px;}
+h1 em{font-style:italic;color:var(--mut);}
+.sub{font-size:12.5px;color:var(--mut);margin-bottom:32px;line-height:1.7;max-width:780px;}
+.sub strong{color:var(--txt);}
+
+/* Table */
+.tbl-wrap{margin-bottom:40px;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+thead tr{background:var(--s2);}
+th{padding:10px 14px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);font-weight:400;border-bottom:2px solid var(--brd);}
+th:first-child,th:nth-child(2){text-align:left;}
+td{padding:9px 14px;text-align:right;border-bottom:1px solid rgba(255,255,255,0.04);font-family:'JetBrains Mono',monospace;font-size:12px;}
+td:first-child{text-align:left;font-family:'Source Sans 3',sans-serif;font-size:12.5px;font-weight:600;white-space:nowrap;}
+td:nth-child(2){text-align:left;font-family:'Source Sans 3',sans-serif;font-size:12px;color:var(--mut);}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.fiscal{color:var(--fiscal);}
+.monetary{color:var(--monetary);}
+.total-row td{border-top:2px solid var(--brd);font-weight:600;color:var(--txt);}
+.country-hdr td{background:var(--s2);color:var(--txt);font-weight:600;font-family:'Source Sans 3',sans-serif;font-size:12px;border-bottom:1px solid var(--brd);}
+.ratio{color:var(--mut);font-size:11px;}
+
+/* Legend */
+.legend{display:flex;gap:24px;margin-bottom:20px;}
+.leg{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mut);}
+.lsq{width:14px;height:14px;border-radius:2px;}
+
+/* Chart */
+.chart-title{font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;color:var(--txt);margin-bottom:4px;}
+.chart-note{font-size:11px;color:var(--mut);margin-bottom:16px;}
+.chart-wrap{position:relative;height:420px;}
+canvas{display:block;}
+
+.fn{font-size:11px;color:var(--mut);margin-top:28px;line-height:1.75;border-top:1px solid var(--brd);padding-top:16px;}
+</style>
+</head>
+<body>
+
+<h1>Fiscal vs Monetary Stimulus — <em>Annual estimates, March 2020 to March 2024</em></h1>
+<p class="sub">
+  All figures in <strong>USD billions</strong> at approximate average annual exchange rates.
+  <strong>Fiscal stimulus</strong> = direct government pandemic expenditure (household payments, wage subsidies, business loans, tax provisions).
+  <strong>Monetary stimulus wealth effect</strong> = estimated household wealth gains attributable to central bank rate cuts and QE (asset price revaluation channel), net of partial 2022–23 reversals.
+  Monetary figures dwarf fiscal in every year except 2020, when fiscal transfers were largest and asset markets had not yet fully recovered.
+</p>
+
+<div class="legend">
+  <div class="leg"><span class="lsq" style="background:var(--fiscal)"></span>Fiscal stimulus (USD B)</div>
+  <div class="leg"><span class="lsq" style="background:var(--monetary)"></span>Monetary stimulus wealth effect (USD B)</div>
+</div>
+
+<div class="tbl-wrap">
+<table id="mainTable">
+  <thead>
+    <tr>
+      <th style="width:110px">Country</th>
+      <th style="width:100px">Year</th>
+      <th>Fiscal (USD B)</th>
+      <th>Monetary (USD B)</th>
+      <th>Total (USD B)</th>
+      <th>Monetary ÷ Fiscal</th>
+    </tr>
+  </thead>
+  <tbody id="tBody"></tbody>
+</table>
+</div>
+
+<div class="chart-title">Annual fiscal vs monetary stimulus by country — USD billions (log scale)</div>
+<div class="chart-note">Log scale used because monetary wealth effects are 3–15× larger than fiscal in most years. Hover for exact values.</div>
+<div class="chart-wrap"><canvas id="chart"></canvas></div>
+
+<div class="fn">
+  <strong>Sources & methodology.</strong>
+  Fiscal totals: Canada C$346B (Bank of Canada 2024, "Review of Exceptional Policy Actions During the Pandemic," Box 1); US $5.3T (CARES Act, ARP, and associated legislation); UK £400B (HM Treasury COVID-19 accounts); Australia A$280B (Australian Government COVID-19 response); New Zealand NZ$90B (NZ Treasury COVID-19 accounts). Annual breakdown estimated from published programme timelines; 2020 is heavily front-loaded in all countries.
+  Monetary wealth effect totals: derived from national accounts (Fed DFA, Stats Canada DNBS, ABS Household Financial Accounts, ONS/Resolution Foundation, Stats NZ), attributing approximately 65–70% of total household wealth gains to monetary policy (asset price revaluation channel), following Batty, Deeken & Volz (2021). 2022 figures reflect partial reversal from rate hikes; 2023 shows modest recovery. Net four-year totals may differ from the main table due to rounding and the treatment of 2022 reversals.
+  Exchange rates: CAD/USD 0.785, GBP/USD 1.30, AUD/USD 0.755, NZD/USD 0.700 (approximate 2021 averages used throughout for consistency).
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const DATA = [
+  {
+    country:'🇨🇦 Canada', short:'Canada', color:'#e05c4b',
+    years:[
+      { yr:'2020', fiscal:185, monetary:430 },
+      { yr:'2021', fiscal:65,  monetary:1080 },
+      { yr:'2022', fiscal:15,  monetary:-300 },
+      { yr:'2023', fiscal:7,   monetary:520  },
+    ]
+  },
+  {
+    country:'🇺🇸 United States', short:'US', color:'#5b9bd5',
+    years:[
+      { yr:'2020', fiscal:2800, monetary:4200 },
+      { yr:'2021', fiscal:2000, monetary:12600 },
+      { yr:'2022', fiscal:400,  monetary:-3200 },
+      { yr:'2023', fiscal:100,  monetary:4800  },
+    ]
+  },
+  {
+    country:'🇬🇧 United Kingdom', short:'UK', color:'#c07acc',
+    years:[
+      { yr:'2020', fiscal:270, monetary:290 },
+      { yr:'2021', fiscal:190, monetary:710 },
+      { yr:'2022', fiscal:45,  monetary:-180 },
+      { yr:'2023', fiscal:15,  monetary:350  },
+    ]
+  },
+  {
+    country:'🇦🇺 Australia', short:'Australia', color:'#4bbf8e',
+    years:[
+      { yr:'2020', fiscal:110, monetary:360 },
+      { yr:'2021', fiscal:75,  monetary:920 },
+      { yr:'2022', fiscal:20,  monetary:-160 },
+      { yr:'2023', fiscal:6,   monetary:340  },
+    ]
+  },
+  {
+    country:'🇳🇿 New Zealand', short:'NZ', color:'#e8b84b',
+    years:[
+      { yr:'2020', fiscal:33, monetary:48  },
+      { yr:'2021', fiscal:22, monetary:118 },
+      { yr:'2022', fiscal:6,  monetary:-55 },
+      { yr:'2023', fiscal:2,  monetary:56  },
+    ]
+  },
+];
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+const tbody = document.getElementById('tBody');
+
+DATA.forEach(c => {
+  // Country header row
+  const hdrRow = document.createElement('tr');
+  hdrRow.className = 'country-hdr';
+  hdrRow.innerHTML = `
+    <td colspan="6" style="color:${c.color};padding-left:14px;">${c.country}</td>`;
+  tbody.appendChild(hdrRow);
+
+  let totF=0, totM=0;
+  c.years.forEach(y => {
+    totF += y.fiscal;
+    totM += y.monetary;
+    const ratio = y.monetary < 0 ? '(reversal)' : (y.monetary/y.fiscal).toFixed(1)+'×';
+    const mClass = y.monetary < 0 ? 'ratio' : 'monetary';
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td></td>
+      <td>${y.yr}</td>
+      <td class="fiscal">$${y.fiscal.toLocaleString()}B</td>
+      <td class="${mClass}">${y.monetary<0?'−':''}$${Math.abs(y.monetary).toLocaleString()}B${y.monetary<0?' <span style="font-size:10px;color:var(--mut)">(correction)</span>':''}</td>
+      <td>$${(y.fiscal+y.monetary).toLocaleString()}B</td>
+      <td class="ratio">${ratio}</td>`;
+    tbody.appendChild(row);
+  });
+
+  // Total row for country
+  const totalRow = document.createElement('tr');
+  totalRow.className = 'total-row';
+  const totRatio = totM < 0 ? '—' : (totM/totF).toFixed(1)+'×';
+  totalRow.innerHTML = `
+    <td></td>
+    <td style="color:var(--txt);font-weight:600;">4-yr total</td>
+    <td class="fiscal" style="font-weight:600;">$${totF.toLocaleString()}B</td>
+    <td class="monetary" style="font-weight:600;">${totM<0?'−':''}$${Math.abs(totM).toLocaleString()}B</td>
+    <td style="font-weight:600;">$${(totF+totM).toLocaleString()}B</td>
+    <td class="ratio">${totRatio}</td>`;
+  tbody.appendChild(totalRow);
+
+  // Spacer
+  const spacer = document.createElement('tr');
+  spacer.innerHTML = `<td colspan="6" style="height:8px;border:none;"></td>`;
+  tbody.appendChild(spacer);
+});
+
+// ── Chart ──────────────────────────────────────────────────────────────────────
+const years = ['2020','2021','2022','2023'];
+const labels = [];
+years.forEach(y => DATA.forEach(c => labels.push(c.short+' '+y)));
+
+// Build datasets: one for fiscal, one for monetary per country
+const fiscalDatasets = DATA.map(c => ({
+  label: c.short+' Fiscal',
+  data: (() => {
+    const arr = Array(DATA.length * 4).fill(null);
+    c.years.forEach((y,yi) => {
+      const idx = DATA.indexOf(c)*4 + yi;
+      arr[idx] = y.fiscal;
+    });
+    return arr;
+  })(),
+  backgroundColor: c.color + '55',
+  borderColor: c.color,
+  borderWidth: 1.5,
+  borderRadius: 3,
+  stack: c.short,
+}));
+
+const monetaryDatasets = DATA.map(c => ({
+  label: c.short+' Monetary',
+  data: (() => {
+    const arr = Array(DATA.length * 4).fill(null);
+    c.years.forEach((y,yi) => {
+      const idx = DATA.indexOf(c)*4 + yi;
+      arr[idx] = Math.max(1, y.monetary); // clamp negatives to 1 for log
+    });
+    return arr;
+  })(),
+  backgroundColor: c.color + 'cc',
+  borderColor: c.color,
+  borderWidth: 1.5,
+  borderRadius: 3,
+  stack: c.short+'M',
+}));
+
+// Simpler grouped bar chart: x = years, groups = countries, two bars per country (fiscal + monetary)
+// Rebuild as: label = country-year pairs, dataset per metric type
+
+// Alternative cleaner approach: one chart per country group
+// Let's go: x-axis = countries × years (5 groups of 4)
+// dataset 1: fiscal (blue), dataset 2: monetary (amber)
+
+const xLabels = [];
+DATA.forEach(c => {
+  years.forEach(y => xLabels.push(c.short+'\n'+y));
+});
+
+const fiscalVals = [];
+const monetaryVals = [];
+DATA.forEach(c => {
+  c.years.forEach(y => {
+    fiscalVals.push(y.fiscal);
+    monetaryVals.push(Math.max(0.5, y.monetary));
+  });
+});
+
+const gc = 'rgba(255,255,255,0.04)', tc = '#6b7280';
+const ttp = {
+  backgroundColor:'rgba(12,15,22,.97)',
+  borderColor:'rgba(255,255,255,.09)',borderWidth:1,
+  titleColor:'#dfe3ec',bodyColor:'#9aa1b5',padding:10
+};
+
+// Draw country group separators as plugin
+const separatorPlugin = {
+  id:'separators',
+  afterDraw(chart) {
+    const {ctx, chartArea, scales:{x}} = chart;
+    if(!chartArea) return;
+    // Draw vertical lines between country groups (every 4 bars)
+    [4,8,12,16].forEach(idx => {
+      // Between idx-1 and idx
+      const x0 = x.getPixelForValue(idx-1);
+      const x1 = x.getPixelForValue(idx);
+      const xMid = (x0+x1)/2;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3,4]);
+      ctx.beginPath();
+      ctx.moveTo(xMid, chartArea.top);
+      ctx.lineTo(xMid, chartArea.bottom);
+      ctx.stroke();
+      ctx.restore();
+    });
+    // Country name labels above chart
+    const countryMids = [1.5, 5.5, 9.5, 13.5, 17.5];
+    DATA.forEach((c,i) => {
+      const xPx = x.getPixelForValue(countryMids[i]);
+      ctx.save();
+      ctx.font = '600 11px Source Sans 3, sans-serif';
+      ctx.fillStyle = c.color;
+      ctx.textAlign = 'center';
+      ctx.fillText(c.short, xPx, chartArea.top - 8);
+      ctx.restore();
+    });
+  }
+};
+
+const ctx = document.getElementById('chart');
+ctx.width  = ctx.parentElement.clientWidth * (window.devicePixelRatio||1);
+ctx.height = 420 * (window.devicePixelRatio||1);
+ctx.style.width  = '100%';
+ctx.style.height = '420px';
+const chartCtx = ctx.getContext('2d');
+chartCtx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
+
+new Chart(chartCtx, {
+  type: 'bar',
+  plugins: [separatorPlugin],
+  data: {
+    labels: xLabels,
+    datasets: [
+      {
+        label: 'Fiscal stimulus',
+        data: fiscalVals,
+        backgroundColor: '#5b9bd5' + '88',
+        borderColor: '#5b9bd5',
+        borderWidth: 1.5,
+        borderRadius: 3,
+        order: 2,
+      },
+      {
+        label: 'Monetary stimulus wealth effect',
+        data: monetaryVals,
+        backgroundColor: '#e8b84b' + 'aa',
+        borderColor: '#e8b84b',
+        borderWidth: 1.5,
+        borderRadius: 3,
+        order: 1,
+      }
+    ]
+  },
+  options: {
+    responsive: false,
+    maintainAspectRatio: false,
+    layout: { padding: { top: 24 } },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'bottom',
+        labels: { color: tc, font:{ size:11 }, boxWidth:14, padding:18 }
+      },
+      tooltip: {
+        ...ttp,
+        callbacks: {
+          title: items => {
+            const idx = items[0].dataIndex;
+            const c = DATA[Math.floor(idx/4)];
+            const yr = years[idx%4];
+            return `${c.country} — ${yr}`;
+          },
+          label: c => {
+            const suffix = c.datasetIndex===1 && c.parsed.y <= 0.5 ? ' (reversal — shown at floor)' : 'B';
+            return `  ${c.dataset.label}: $${c.parsed.y.toFixed(0)}${suffix}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: tc, font:{ size: 9.5 },
+          maxRotation: 0,
+          callback: (v, i) => {
+            // show year only
+            return years[i % 4];
+          }
+        },
+        grid: { color: gc },
+      },
+      y: {
+        type: 'logarithmic',
+        min: 1,
+        ticks: {
+          color: tc, font:{ size:10 },
+          callback: v => {
+            if([1,10,100,1000,10000].includes(v)) return '$'+v+'B';
+            return null;
+          }
+        },
+        grid: { color: gc },
+        title: { display: true, text: 'USD billions (log scale)', color: tc, font:{ size:10 } }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>

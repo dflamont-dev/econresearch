@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credit Access — Population Curve</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1117; --s1:#161b25; --s2:#1c2130;
+  --brd:rgba(255,255,255,0.07);
+  --txt:#dfe3ec; --mut:#6b7280; --dim:#252d3d;
+  --c0:#4bbf8e; --c1:#5b9bd5; --c2:#b07fd4; --c3:#e8b84b; --c4:#e05c4b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--txt);font-family:'Source Sans 3',sans-serif;}
+
+.hdr{padding:32px 44px 22px;border-bottom:1px solid var(--brd);}
+.eye{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--c1);margin-bottom:8px;}
+h1{font-family:'Playfair Display',serif;font-size:clamp(20px,2.8vw,34px);line-height:1.12;margin-bottom:8px;}
+h1 em{font-style:italic;color:var(--mut);}
+.hdr-sub{font-size:12.5px;color:var(--mut);max-width:760px;line-height:1.75;}
+
+/* Slider */
+.slrow{display:flex;align-items:center;gap:16px;padding:13px 44px;background:var(--s2);border-bottom:1px solid var(--brd);}
+.sl-lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mut);white-space:nowrap;}
+.sl-mid{flex:1;}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:3px;border-radius:3px;outline:none;cursor:pointer;
+  background:linear-gradient(to right,var(--c1) 0%,var(--c1) var(--fp,25%),var(--dim) var(--fp,25%),var(--dim) 100%);
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:var(--txt);border:2px solid var(--bg);box-shadow:0 0 0 3px var(--c1);cursor:pointer;
+}
+.sl-ticks{display:flex;justify-content:space-between;margin-top:5px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--mut);}
+.sl-val{font-family:'Playfair Display',serif;font-size:30px;color:var(--c1);min-width:68px;text-align:right;line-height:1;}
+.sl-val small{font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--mut);}
+
+/* Chart */
+.chart-wrap{padding:22px 44px 10px;}
+canvas{display:block;width:100%;}
+
+/* Data strip */
+.dstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--brd);border-top:1px solid var(--brd);border-bottom:1px solid var(--brd);margin:0 44px;}
+.dc{background:var(--s1);padding:11px 14px;}
+.dc-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;}
+.dc-val{font-family:'Playfair Display',serif;font-size:20px;line-height:1;margin-bottom:1px;}
+.dc-sub{font-size:10px;color:var(--mut);}
+
+/* Gap box */
+.gapbox{margin:1px 44px 0;background:var(--s2);border:1px solid var(--brd);padding:14px 20px;display:flex;align-items:center;gap:24px;}
+.gb-lbl{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);}
+.gb-val{font-family:'Playfair Display',serif;font-size:32px;color:var(--txt);}
+.gb-sub{font-size:12px;color:var(--mut);max-width:500px;line-height:1.6;}
+
+.fn{font-size:11px;color:var(--mut);padding:12px 44px 22px;line-height:1.7;border-top:1px solid var(--brd);margin-top:1px;}
+
+@media(max-width:700px){
+  .hdr,.chart-wrap,.fn,.gapbox{padding-left:18px;padding-right:18px;}
+  .dstrip{margin:0 18px;grid-template-columns:repeat(3,1fr);}
+  .slrow{padding-left:18px;padding-right:18px;}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="eye">Credit Access · Continuous Population Curve · Interactive</div>
+  <h1>Maximum loan on $2,000/month — <em>across the full population</em></h1>
+  <p class="hdr-sub">Credit spread above the base rate is a continuous function of creditworthiness, which itself follows the population's wealth distribution. The curve shows what each person at each population percentile can actually borrow — not the average for their tier. The bottom of the population borrows far less than the tier blocks implied; only as you approach the top does the curve lift sharply.</p>
+</div>
+
+<div class="slrow">
+  <div class="sl-lbl">Base rate</div>
+  <div class="sl-mid">
+    <input type="range" id="rs" min="0" max="20" step="0.25" value="5">
+    <div class="sl-ticks">
+      <span>0%</span><span>2%</span><span>4%</span><span>6%</span><span>8%</span>
+      <span>10%</span><span>12%</span><span>14%</span><span>16%</span><span>18%</span><span>20%</span>
+    </div>
+  </div>
+  <div class="sl-val" id="rv">5.00<small>%</small></div>
+</div>
+
+<div class="chart-wrap"><canvas id="cv"></canvas></div>
+
+<div class="dstrip" id="dstrip"></div>
+
+<div class="gapbox">
+  <div>
+    <div class="gb-lbl">Dollar gap — top 0.01% vs bottom 80%</div>
+    <div class="gb-val" id="gapVal">—</div>
+  </div>
+  <div class="gb-sub" id="gapSub">Same $2,000/month payment. Same 30-year mortgage. The gap is entirely a product of creditworthiness tier and the rate the lender charges — not effort or risk in any productive sense.</div>
+</div>
+
+<div class="fn">
+  <strong>Credit spread function.</strong> The spread above the base rate is modelled as a continuous, monotonically decreasing function of population percentile, calibrated to observed anchors: bottom of population ~22pp spread (sub-prime / high-risk lending); 50th percentile ~9.5pp; 80th percentile ~4.5pp; 96th percentile ~2.4pp; 99th percentile ~1.5pp; top 0.01% ~0.5pp. This is a simplification — in reality, large fractions of the population cannot qualify for mortgage lending at all at high base rates. Loan formula: P = 2,000 × [1−(1+r)^(−360)] / r where r = (base + spread) / 12 / 100. At r=0, P = $720,000. The super-elite (top 0.01%) occupy 0.01% of the chart width — a single pixel or less — shown here as a callout at the right edge.
+</div>
+
+<script>
+const PMT = 2000, N = 360;
+
+// Continuous spread function: spread above base rate, by population percentile
+// Anchors: [percentile, spread_pp]
+const ANCHORS = [
+  [0,     22.0],
+  [5,     19.5],
+  [10,    17.0],
+  [20,    14.5],
+  [30,    12.5],
+  [40,    11.0],
+  [50,     9.5],
+  [60,     8.0],
+  [70,     6.5],
+  [75,     5.5],
+  [80,     4.5],
+  [85,     3.5],
+  [90,     2.8],
+  [95,     2.4],
+  [97,     2.0],
+  [99,     1.5],
+  [99.35,  1.25],
+  [99.5,   1.0],
+  [99.8,   0.75],
+  [99.9,   0.65],
+  [99.99,  0.50],
+];
+
+function getSpread(pct) {
+  pct = Math.max(0, Math.min(99.99, pct));
+  for (let i = 0; i < ANCHORS.length - 1; i++) {
+    const [p0, s0] = ANCHORS[i], [p1, s1] = ANCHORS[i+1];
+    if (pct >= p0 && pct <= p1) {
+      const t = (pct - p0) / (p1 - p0);
+      // Use smoothstep for nicer interpolation
+      const ts = t * t * (3 - 2*t);
+      return s0 + ts * (s1 - s0);
+    }
+  }
+  return ANCHORS[ANCHORS.length-1][1];
+}
+
+function maxLoan(annualRate) {
+  const r = annualRate / 1200;
+  if (r <= 0) return PMT * N;
+  return PMT * (1 - Math.pow(1+r, -N)) / r;
+}
+
+function loanAt(pct, base) {
+  return maxLoan(base + getSpread(pct));
+}
+
+// Key percentile markers
+const MARKERS = [
+  { pct: 80.00, label: '80th pct', sub: 'Majority / Affluent boundary', color: '#5b9bd5' },
+  { pct: 96.00, label: '96th pct', sub: 'Affluent / Upper boundary',   color: '#b07fd4' },
+  { pct: 99.35, label: '99.35th', sub: 'Upper / Elite boundary',       color: '#e8b84b' },
+];
+
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const DPR = window.devicePixelRatio || 1;
+
+function resize() {
+  const W = cv.parentElement.clientWidth;
+  const H = Math.round(W * 0.50);
+  cv.width  = W * DPR;
+  cv.height = H * DPR;
+  cv.style.width  = W + 'px';
+  cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  return { W, H };
+}
+
+function draw(base) {
+  const { W, H } = resize();
+  const pad = { top: 22, right: 30, bottom: 70, left: 90 };
+  const cW = W - pad.left - pad.right;
+  const cH = H - pad.top - pad.bottom;
+
+  // Sample curve at high resolution
+  const SAMPLES = 2000;
+  const pts = [];
+  for (let i = 0; i <= SAMPLES; i++) {
+    const pct  = (i / SAMPLES) * 99.99;
+    const loan = loanAt(pct, base);
+    pts.push({ pct, loan });
+  }
+
+  const maxLoanVal = loanAt(99.99, base);
+  const minLoanVal = loanAt(0,     base);
+  const yMax = Math.ceil(maxLoanVal / 50000) * 50000 * 1.08;
+
+  function xOf(pct)  { return pad.left + (pct / 100) * cW; }
+  function yOf(loan) { return pad.top + cH - (loan / yMax) * cH; }
+
+  // ── Clear ──
+  ctx.fillStyle = '#0e1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Y gridlines + labels ──
+  const ySteps = 5;
+  ctx.font = '10px JetBrains Mono,monospace';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= ySteps; i++) {
+    const val = (yMax / ySteps) * i;
+    const y   = yOf(val);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cW, y); ctx.stroke();
+    ctx.fillStyle = '#5a6070';
+    const lbl = val >= 1e6 ? '$'+(val/1e6).toFixed(1)+'M' : '$'+Math.round(val/1000)+'K';
+    ctx.fillText(lbl, pad.left - 8, y + 4);
+  }
+
+  // Y axis title
+  ctx.save();
+  ctx.translate(13, pad.top + cH/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#5a6070';
+  ctx.font = '11px Source Sans 3,sans-serif';
+  ctx.fillText('Maximum loan on $2,000/month · 30-year amortisation', 0, 0);
+  ctx.restore();
+
+  // ── Tier boundary shading (vertical bands) ──
+  const bandBounds = [0, 80, 96, 99.35, 99.99, 100];
+  const bandColors = ['#4bbf8e', '#5b9bd5', '#b07fd4', '#e8b84b', '#e05c4b'];
+  for (let b = 0; b < bandColors.length; b++) {
+    const x0 = xOf(bandBounds[b]);
+    const x1 = xOf(bandBounds[b+1]);
+    if (x1 - x0 < 0.5) continue;
+    ctx.fillStyle = bandColors[b] + '09';
+    ctx.fillRect(x0, pad.top, x1 - x0, cH);
+  }
+
+  // ── Tier boundary markers ──
+  MARKERS.forEach(m => {
+    const x = xOf(m.pct);
+    ctx.strokeStyle = m.color + '50';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + cH); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // ── Filled area under curve (horizontal gradient by tier colour) ──
+  // Draw 5 separate filled segments so each tier region has the right colour
+  const tierBounds = [0, 80, 96, 99.35, 99.99];
+
+  for (let ti = 0; ti < bandColors.length; ti++) {
+    const p0 = tierBounds[ti];
+    const p1 = ti < tierBounds.length-1 ? tierBounds[ti+1] : 99.99;
+    const segPts = pts.filter(p => p.pct >= p0 && p.pct <= p1);
+    if (segPts.length < 2) continue;
+
+    ctx.beginPath();
+    ctx.moveTo(xOf(segPts[0].pct), pad.top + cH);
+    ctx.lineTo(xOf(segPts[0].pct), yOf(segPts[0].loan));
+    segPts.forEach(p => ctx.lineTo(xOf(p.pct), yOf(p.loan)));
+    ctx.lineTo(xOf(segPts[segPts.length-1].pct), pad.top + cH);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+    grad.addColorStop(0,   bandColors[ti] + '55');
+    grad.addColorStop(0.6, bandColors[ti] + '25');
+    grad.addColorStop(1,   bandColors[ti] + '08');
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // ── Main curve line ──
+  ctx.beginPath();
+  ctx.moveTo(xOf(pts[0].pct), yOf(pts[0].loan));
+  pts.forEach(p => ctx.lineTo(xOf(p.pct), yOf(p.loan)));
+  ctx.strokeStyle = 'rgba(255,255,255,0.80)';
+  ctx.lineWidth   = 2;
+  ctx.lineJoin    = 'round';
+  ctx.stroke();
+
+  // ── Axes ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + cH);
+  ctx.lineTo(pad.left + cW, pad.top + cH);
+  ctx.stroke();
+
+  // ── X axis ticks + labels ──
+  [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].forEach(t => {
+    const x = xOf(t);
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, pad.top+cH); ctx.lineTo(x, pad.top+cH+5); ctx.stroke();
+    ctx.font = '10px JetBrains Mono,monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#5a6070';
+    ctx.fillText(t+'th', x, pad.top + cH + 17);
+  });
+
+  // X axis title
+  ctx.font = '11px Source Sans 3,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#5a6070';
+  ctx.fillText('Population percentile  (0 = lowest creditworthiness → 100 = highest)', pad.left + cW/2, pad.top + cH + 32);
+
+  // ── Median line (50th percentile) ──
+  const medLoan = loanAt(50, base);
+  const medY    = yOf(medLoan);
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.moveTo(xOf(50), pad.top); ctx.lineTo(xOf(50), pad.top+cH); ctx.stroke();
+  ctx.setLineDash([]);
+  // Median label
+  ctx.font = '600 11px Source Sans 3,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillText('Median', xOf(50), pad.top + 13);
+  ctx.font = '10px JetBrains Mono,monospace';
+  ctx.fillText('$'+Math.round(medLoan/1000)+'K', xOf(50), pad.top + 25);
+
+  // Horizontal dashed line at median loan height
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.moveTo(pad.left, medY); ctx.lineTo(pad.left+cW, medY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = '9.5px JetBrains Mono,monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.fillText('median loan: $'+Math.round(medLoan/1000)+'K', pad.left + 6, medY - 4);
+
+  // ── Tier boundary labels ──
+  MARKERS.forEach(m => {
+    const x = xOf(m.pct);
+    const labelLoan = loanAt(m.pct, base);
+    ctx.font = '600 10px Source Sans 3,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = m.color + 'cc';
+    ctx.fillText(m.label, x, pad.top + 14);
+    ctx.font = '9px JetBrains Mono,monospace';
+    ctx.fillStyle = m.color + '77';
+    ctx.fillText('$'+Math.round(labelLoan/1000)+'K', x, pad.top + 25);
+  });
+
+  // ── Person icons row ──
+  // 100 icons, each = 1 percentile of population
+  const iconY0 = pad.top + cH + 46;
+  const iconSp = cW / 100;
+  for (let i = 0; i < 100; i++) {
+    const px = pad.left + (i + 0.5) * iconSp;
+    let col = '#4bbf8e';
+    if (i >= 99)      col = '#e05c4b';  // approx elite/super
+    else if (i >= 96) col = '#b07fd4';
+    else if (i >= 80) col = '#5b9bd5';
+
+    ctx.fillStyle   = col + '90';
+    ctx.strokeStyle = col + '60';
+    ctx.lineWidth   = 1;
+
+    // Head
+    ctx.beginPath();
+    ctx.arc(px, iconY0, 2.2, 0, Math.PI*2);
+    ctx.fill();
+    // Body + limbs
+    ctx.beginPath();
+    ctx.moveTo(px, iconY0+2.5);
+    ctx.lineTo(px, iconY0+8);
+    ctx.moveTo(px-2.5, iconY0+4.5);
+    ctx.lineTo(px+2.5, iconY0+4.5);
+    ctx.moveTo(px, iconY0+8);
+    ctx.lineTo(px-2, iconY0+13);
+    ctx.moveTo(px, iconY0+8);
+    ctx.lineTo(px+2, iconY0+13);
+    ctx.stroke();
+  }
+
+  // Icon legend
+  ctx.font = '9.5px JetBrains Mono,monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#4a5568';
+  ctx.fillText('Each figure = 1% of the population', pad.left, pad.top + cH + 68);
+
+  // ── Super-elite callout at right edge ──
+  const seX    = xOf(99.99);
+  const seY    = yOf(loanAt(99.99, base));
+  const seLoan = loanAt(99.99, base);
+
+  // Dot on curve
+  ctx.fillStyle = '#e05c4b';
+  ctx.beginPath();
+  ctx.arc(seX, seY, 4, 0, Math.PI*2);
+  ctx.fill();
+
+  // Callout box to the left (so it fits in chart)
+  const cbW = 130, cbH = 46;
+  const cbX = Math.min(seX - cbW - 12, pad.left + cW - cbW - 6);
+  const cbY = Math.max(pad.top + 4, seY - cbH/2);
+
+  ctx.fillStyle = 'rgba(14,17,23,0.92)';
+  ctx.strokeStyle = '#e05c4b77';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(cbX, cbY, cbW, cbH, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  // Connector line
+  ctx.strokeStyle = '#e05c4b55';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cbX + cbW, cbY + cbH/2);
+  ctx.lineTo(seX - 4, seY);
+  ctx.stroke();
+
+  ctx.font = '600 10px Source Sans 3,sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#e05c4b';
+  ctx.fillText('Super-elite (top 0.01%)', cbX + 8, cbY + 15);
+  ctx.font = '11px JetBrains Mono,monospace';
+  ctx.fillStyle = '#e8e6df';
+  ctx.fillText('$'+Math.round(seLoan/1000)+'K max loan', cbX + 8, cbY + 32);
+  ctx.font = '9px JetBrains Mono,monospace';
+  ctx.fillStyle = '#5a6070';
+  ctx.fillText('eff. rate: '+(base+0.5).toFixed(2)+'%', cbX + 8, cbY + 43);
+}
+
+// ── Strip and gap ─────────────────────────────────────────────────────────────
+const STRIP_PTS = [
+  { label:'0th pct',      pct:0,     color:'#e05c4b', desc:'Starting point' },
+  { label:'50th pct',     pct:50,    color:'#4bbf8e', desc:'Median borrower' },
+  { label:'80th pct',     pct:80,    color:'#5b9bd5', desc:'Top of Majority' },
+  { label:'96th pct',     pct:96,    color:'#b07fd4', desc:'Top of Affluent' },
+  { label:'Top 0.01%',    pct:99.99, color:'#e05c4b', desc:'Super-elite' },
+];
+
+function updateStrip(base) {
+  document.getElementById('dstrip').innerHTML = STRIP_PTS.map(s => {
+    const loan = loanAt(s.pct, base);
+    const eff  = base + getSpread(s.pct);
+    return `<div class="dc">
+      <div class="dc-label" style="color:${s.color}">${s.label}</div>
+      <div class="dc-val" style="color:${s.color}">$${Math.round(loan/1000)}K</div>
+      <div class="dc-sub">eff. ${eff.toFixed(1)}% · ${s.desc}</div>
+    </div>`;
+  }).join('');
+
+  const gap   = loanAt(99.99, base) - loanAt(0, base);
+  const p50   = loanAt(50, base);
+  const p80   = loanAt(80, base);
+  const super_ = loanAt(99.99, base);
+  document.getElementById('gapVal').textContent = '$'+Math.round(gap/1000)+'K';
+  document.getElementById('gapSub').textContent =
+    `At this rate, the person at the bottom can borrow $${Math.round(loanAt(0,base)/1000)}K. ` +
+    `The median borrower can get $${Math.round(p50/1000)}K. ` +
+    `The top of the majority (80th pct) reaches $${Math.round(p80/1000)}K. ` +
+    `The super-elite can access $${Math.round(super_/1000)}K — ` +
+    `${(super_/loanAt(0,base)).toFixed(1)}× more than the person at the bottom, on the same $2,000/month.`;
+}
+
+// ── Update ────────────────────────────────────────────────────────────────────
+let raf;
+function update() {
+  const base = parseFloat(document.getElementById('rs').value);
+  const pct  = (base / 20) * 100;
+  document.getElementById('rv').innerHTML = base.toFixed(2) + '<small>%</small>';
+  document.getElementById('rs').style.setProperty('--fp', pct + '%');
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => { draw(base); updateStrip(base); });
+}
+
+let rt;
+window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(update, 80); });
+document.getElementById('rs').addEventListener('input', update);
+setTimeout(update, 0);
+</script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rate Amplification — Income-Scaled</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#1a1a1a;padding:20px;max-width:900px;margin:0 auto;}
+h1{font-size:16px;font-weight:500;color:#333;margin-bottom:4px;}
+.sub{font-size:12px;color:#888;margin-bottom:16px;}
+.tog{display:flex;gap:6px;margin-bottom:12px;}
+.tb{padding:6px 14px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:8px;background:#fff;color:#666;transition:all .15s;}
+.tb.on{background:#f0f0f0;color:#111;border-color:#999;font-weight:500;}
+.sr{display:flex;align-items:center;gap:12px;margin:8px 0 4px;}
+.sr label{font-size:13px;color:#666;white-space:nowrap;}
+.sr input[type=range]{flex:1;accent-color:#185FA5;}
+.sr span{font-size:14px;font-weight:500;min-width:44px;color:#111;}
+.mc4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;}
+.mc{background:#f5f5f5;border-radius:8px;padding:10px 12px;}
+.ml{font-size:11px;color:#888;margin:0 0 2px;}
+.mv{font-size:18px;font-weight:500;margin:0;color:#111;}
+.ms{font-size:10px;color:#999;margin:2px 0 0;line-height:1.4;}
+.sl{font-size:11px;font-weight:600;color:#999;letter-spacing:.05em;text-transform:uppercase;margin:16px 0 7px;}
+.cr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0;}
+.lg{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:8px 0;}
+.li{display:flex;align-items:flex-start;gap:5px;font-size:10.5px;color:#666;}
+.lq{width:10px;height:10px;border-radius:2px;flex-shrink:0;margin-top:1px;}
+.ag{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:7px 0;}
+.ac{background:#f5f5f5;border-radius:8px;padding:8px 10px;}
+.at{font-size:10px;font-weight:600;margin:0 0 3px;}
+.av{font-size:14px;font-weight:500;margin:0;}
+.as{font-size:10px;color:#888;margin:2px 0 0;}
+.bt{background:#e0e0e0;border-radius:3px;height:5px;margin-top:5px;overflow:hidden;}
+.bf{height:100%;border-radius:3px;}
+.pg{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:7px 0;}
+.pc{border:1px solid #e5e5e5;border-radius:8px;padding:8px 10px;}
+.fn{font-size:11px;color:#999;margin-top:14px;line-height:1.65;border-top:1px solid #eee;padding-top:12px;}
+@media(max-width:600px){.mc4,.ag,.pg{grid-template-columns:repeat(2,1fr);}.cr{grid-template-columns:1fr;}.lg{grid-template-columns:repeat(3,1fr);}}
+</style>
+</head>
+<body>
+
+<h1>Rate amplification across wealth strata</h1>
+<p class="sub">How central bank rate cuts expand borrowing capacity — fixed payment vs income-scaled</p>
+
+<div class="tog">
+  <button class="tb on" id="btnE" onclick="setMode('equal')">Fixed $2,000/mo (rate mechanism only)</button>
+  <button class="tb" id="btnS" onclick="setMode('scaled')">Income-scaled payments (full amplification)</button>
+</div>
+
+<div class="sr">
+  <label>Central bank base rate:</label>
+  <input type="range" id="rs" min="0.25" max="8" step="0.25" value="5">
+  <span id="rd">5.00%</span>
+</div>
+
+<div class="mc4" id="mets"></div>
+
+<div class="sl" id="chartLabel">Borrowing capacity — $2,000/mo fixed payment (spread effect only)</div>
+
+<div class="cr">
+  <div style="position:relative;height:270px;"><canvas id="fanC"></canvas></div>
+  <div style="position:relative;height:270px;"><canvas id="gainC"></canvas></div>
+</div>
+
+<div class="lg" id="leg"></div>
+
+<div class="sl">Gain vs 5% benchmark — absolute dollars per tier</div>
+<div class="ag" id="ag"></div>
+
+<div id="paySection" style="display:none;">
+  <div class="sl">Monthly payment capacity by stratum (income-scaled mode)</div>
+  <div class="pg" id="pg"></div>
+</div>
+
+<div class="fn">
+  <strong>Income-scaled payments</strong> assume ~30% gross debt service ratio on estimated median annual incomes per stratum: Ultra-elite $1.6M/yr → $40,000/mo; Elite $320K/yr → $8,000/mo; Upper $160K/yr → $4,000/mo; Affluent $80K/yr → $2,000/mo; Majority $48K/yr → $1,200/mo. <strong>Credit spreads above base rate:</strong> Ultra-elite +0.50%, Elite +1.25%, Upper +2.50%, Affluent +4.00%, Majority +9.00% (weighted blend of standard, near-prime, subprime and non-qualifying borrowers). <strong>Amplification factor</strong> = ultra-elite dollar gain ÷ majority dollar gain vs 5% benchmark. At 0.25% base in income-scaled mode, ultra-elite gains ~$5.9M vs majority ~$45K ≈ 130×. Fixed-payment mode isolates the spread/rate mechanism alone (~3–4×); income-scaled mode adds payment capacity to reveal total structural amplification. Wealth strata from 80/20 Pareto: top 0.01% = 40% of property; 0.01–0.65% = 11%; 0.65–3.85% = 13%; 3.85–19.85% = 16%; bottom 80% = 20%.
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const N=360,BENCH=5.0;
+const T=[
+  {n:"Ultra-elite",s:"Top 0.01%",  sp:0.50,c:"#042C53",pR:40000,pE:2000,inc:"$1.6M/yr"},
+  {n:"Elite",      s:"0.01–0.65%", sp:1.25,c:"#185FA5",pR:8000, pE:2000,inc:"$320K/yr"},
+  {n:"Upper",      s:"0.65–3.85%", sp:2.50,c:"#0F6E56",pR:4000, pE:2000,inc:"$160K/yr"},
+  {n:"Affluent",   s:"3.85–19.85%",sp:4.00,c:"#BA7517",pR:2000, pE:2000,inc:"$80K/yr"},
+  {n:"Majority",   s:"Bottom 80%", sp:9.00,c:"#A32D2D",pR:1200, pE:2000,inc:"$48K/yr"},
+];
+let mode='equal';
+function pm(t){return mode==='scaled'?t.pR:t.pE;}
+function ml(base,t,pay){
+  const r=(base+t.sp)/1200;
+  if(r<=0)return pay*N;
+  return pay*(1-Math.pow(1+r,-N))/r;
+}
+function fmt(v){
+  const a=Math.abs(v),s=v<0?'-':'';
+  if(a>=1e6)return s+'$'+(a/1e6).toFixed(2)+'M';
+  if(a>=1e3)return s+'$'+Math.round(a/1e3)+'K';
+  return s+'$'+Math.round(a);
+}
+const AR=[];
+for(let r=0.25;r<=8.01;r+=0.25)AR.push(+r.toFixed(2));
+const gc='rgba(0,0,0,0.06)',tc='#888';
+const ttp={backgroundColor:'rgba(255,255,255,.97)',borderColor:'rgba(0,0,0,.1)',borderWidth:1,titleColor:'#333',bodyColor:'#555',padding:9};
+let fC=null,gC=null;
+
+function buildLeg(){
+  document.getElementById('leg').innerHTML=T.map(t=>`<div class="li"><span class="lq" style="background:${t.c}"></span><span><strong style="font-size:11px;color:#111">${t.n}</strong><br>${t.s}</span></div>`).join('');
+}
+
+function buildFan(){
+  if(fC){fC.destroy();fC=null;}
+  const isLog=mode==='scaled';
+  const ctx=document.getElementById('fanC').getContext('2d');
+  fC=new Chart(ctx,{
+    type:'line',
+    data:{labels:AR.map(r=>r+'%'),datasets:T.map((t,i)=>({
+      label:t.n,data:AR.map(r=>ml(r,t,pm(t))),
+      borderColor:t.c,backgroundColor:'transparent',
+      borderWidth:i<2?2.5:1.75,tension:0.25,
+      pointRadius:0,pointHoverRadius:4,
+      borderDash:i>=3?[5,4]:[],
+    }))},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{...ttp,callbacks:{label:c=>` ${T[c.datasetIndex].n}: ${fmt(c.parsed.y)}`}}},
+      scales:{
+        x:{ticks:{color:tc,font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:9,callback:(v,i)=>AR[i]%1===0?AR[i]+'%':''},grid:{color:gc},title:{display:true,text:'Base rate',color:tc,font:{size:10}}},
+        y:{type:isLog?'logarithmic':'linear',ticks:{color:tc,font:{size:10},callback:v=>fmt(v)},grid:{color:gc},title:{display:true,text:isLog?'Max loan (log scale)':'Max loan',color:tc,font:{size:10}}}
+      }
+    }
+  });
+}
+
+function buildGain(rate){
+  if(gC){gC.destroy();gC=null;}
+  const ctx=document.getElementById('gainC').getContext('2d');
+  const bv=T.map(t=>ml(BENCH,t,pm(t)));
+  const cv=T.map(t=>ml(rate,t,pm(t)));
+  const gains=cv.map((c,i)=>c-bv[i]);
+  const mx=Math.max(...gains.map(Math.abs),1);
+  gC=new Chart(ctx,{
+    type:'bar',
+    data:{labels:T.map(t=>t.n),datasets:[{label:'Gain vs 5%',data:gains,backgroundColor:gains.map((g,i)=>g>=0?T[i].c:'#aaaaaa'),borderRadius:4}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{...ttp,callbacks:{label:c=>{const g=c.parsed.y,b=bv[c.dataIndex];return ` ${g>=0?'+':''}${fmt(g)} (${(g/b*100).toFixed(1)}%)`;}}}},
+      scales:{
+        x:{ticks:{color:tc,font:{size:10.5}},grid:{display:false}},
+        y:{suggestedMax:mx*1.12,suggestedMin:Math.min(0,...gains)*1.12,ticks:{color:tc,font:{size:10},callback:v=>fmt(v)},grid:{color:gc},title:{display:true,text:'Gain vs 5% bench',color:tc,font:{size:10}}}
+      }
+    }
+  });
+}
+
+function updateGain(rate){
+  if(!gC){buildGain(rate);return;}
+  const bv=T.map(t=>ml(BENCH,t,pm(t)));
+  const cv=T.map(t=>ml(rate,t,pm(t)));
+  const gains=cv.map((c,i)=>c-bv[i]);
+  const mx=Math.max(...gains.map(Math.abs),1);
+  gC.data.datasets[0].data=gains;
+  gC.data.datasets[0].backgroundColor=gains.map((g,i)=>g>=0?T[i].c:'#aaaaaa');
+  gC.options.scales.y.suggestedMax=mx*1.12;
+  gC.options.scales.y.suggestedMin=Math.min(0,...gains)*1.12;
+  gC.update('none');
+}
+
+function updateMets(rate){
+  const top=ml(rate,T[0],pm(T[0])),bot=ml(rate,T[4],pm(T[4]));
+  const tB=ml(BENCH,T[0],pm(T[0])),bB=ml(BENCH,T[4],pm(T[4]));
+  const tG=top-tB,bG=bot-bB;
+  const amp=Math.abs(bG)>100?tG/bG:0;
+  const ampStr=Math.abs(bG)<100?'—':Math.abs(amp).toFixed(0)+'×';
+  const ampCol=Math.abs(amp)>20?'#D85A30':'#111';
+  document.getElementById('mets').innerHTML=`
+    <div class="mc"><p class="ml">Ultra-elite max loan</p><p class="mv" style="color:#185FA5">${fmt(top)}</p><p class="ms">Rate ${(rate+T[0].sp).toFixed(2)}% · pmt ${mode==='scaled'?'$40K/mo':'$2K/mo'}</p></div>
+    <div class="mc"><p class="ml">Majority max loan</p><p class="mv" style="color:#A32D2D">${fmt(bot)}</p><p class="ms">Rate ${(rate+T[4].sp).toFixed(2)}% · pmt ${mode==='scaled'?'$1.2K/mo':'$2K/mo'}</p></div>
+    <div class="mc"><p class="ml">Dollar gap</p><p class="mv">${fmt(top-bot)}</p><p class="ms">${mode==='scaled'?'Spread + payment capacity':'Spread effect only'}</p></div>
+    <div class="mc"><p class="ml">Rate-cut amplification</p><p class="mv" style="color:${ampCol}">${ampStr}</p><p class="ms">Elite gain ÷ majority gain vs 5%</p></div>`;
+}
+
+function updateAG(rate){
+  const bv=T.map(t=>ml(BENCH,t,pm(t)));
+  const cv=T.map(t=>ml(rate,t,pm(t)));
+  const gains=cv.map((c,i)=>c-bv[i]);
+  const mx=Math.max(...gains.map(Math.abs),1);
+  document.getElementById('ag').innerHTML=T.map((t,i)=>{
+    const g=gains[i],b=bv[i];
+    const col=g>=0?t.c:'#888';
+    const s=g>=0?'+':'';
+    const bw=(Math.abs(g)/mx*100).toFixed(1);
+    return `<div class="ac"><p class="at" style="color:${t.c}">${t.n} <span style="font-weight:400;color:#aaa">${t.s}</span></p><p class="av" style="color:${col}">${s}${fmt(Math.abs(g))}</p><p class="as">${s}${(g/b*100).toFixed(1)}% · eff. ${(rate+t.sp).toFixed(2)}%</p><div class="bt"><div class="bf" style="width:${bw}%;background:${col}"></div></div></div>`;
+  }).join('');
+}
+
+function buildPG(){
+  document.getElementById('pg').innerHTML=T.map(t=>`<div class="pc"><div style="font-size:10px;font-weight:600;color:${t.c};margin-bottom:3px;">${t.n}</div><div style="font-size:14px;font-weight:500;">$${t.pR.toLocaleString()}/mo</div><div style="font-size:10px;color:#999;margin-top:2px;">${t.inc}</div><div style="font-size:10px;color:#999;">~30% GDS</div></div>`).join('');
+}
+
+function setMode(m){
+  mode=m;
+  document.getElementById('btnS').classList.toggle('on',m==='scaled');
+  document.getElementById('btnE').classList.toggle('on',m==='equal');
+  document.getElementById('paySection').style.display=m==='scaled'?'block':'none';
+  document.getElementById('chartLabel').textContent=m==='scaled'
+    ?'Borrowing capacity — income-scaled payments (spread + payment capacity combined, log scale)'
+    :'Borrowing capacity — $2,000/mo fixed payment (spread effect only)';
+  const rate=parseFloat(document.getElementById('rs').value);
+  buildFan();buildGain(rate);updateMets(rate);updateAG(rate);
+}
+
+function pinFan(rate){
+  const idx=AR.findIndex(r=>Math.abs(r-rate)<.01);
+  if(idx<0||!fC)return;
+  fC.data.datasets.forEach(ds=>{ds.pointRadius=AR.map((_,i)=>i===idx?5:0);});
+  fC.update('none');
+}
+
+function onSlider(){
+  const rate=parseFloat(document.getElementById('rs').value);
+  document.getElementById('rd').textContent=rate.toFixed(2)+'%';
+  updateGain(rate);updateMets(rate);updateAG(rate);pinFan(rate);
+}
+
+buildLeg();buildFan();
+const ir=parseFloat(document.getElementById('rs').value);
+buildGain(ir);updateMets(ir);updateAG(ir);buildPG();
+document.getElementById('rs').addEventListener('input',onSlider);
+</script>
+</body>
+</html>
