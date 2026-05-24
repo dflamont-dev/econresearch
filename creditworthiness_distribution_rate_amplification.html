@@ -1,0 +1,259 @@
+
+<h2 class="sr-only">Interactive model showing how interest rate changes affect maximum borrowing capacity differently across five creditworthiness tiers, amplifying existing wealth inequality.</h2>
+
+<style>
+.sec-label{font-size:11px;font-weight:500;color:var(--color-text-tertiary);letter-spacing:.05em;text-transform:uppercase;margin:20px 0 8px;}
+.mc-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:4px;}
+.mc{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px;}
+.mc-lbl{font-size:11px;color:var(--color-text-tertiary);margin:0 0 2px;}
+.mc-val{font-size:19px;font-weight:500;margin:0;color:var(--color-text-primary);}
+.mc-sub{font-size:11px;color:var(--color-text-secondary);margin:2px 0 0;}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;}
+.chart-box{position:relative;}
+.slider-row{display:flex;align-items:center;gap:12px;margin:12px 0 4px;}
+.slider-row label{font-size:13px;color:var(--color-text-secondary);white-space:nowrap;}
+.slider-row input{flex:1;}
+.slider-row span{font-size:14px;font-weight:500;min-width:44px;color:var(--color-text-primary);}
+.legend-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0;}
+.leg-item{display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--color-text-secondary);}
+.leg-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;margin-top:1px;}
+.amp-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px 0;}
+.amp-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 10px;}
+.amp-tier{font-size:10px;color:var(--color-text-tertiary);margin:0 0 3px;font-weight:500;}
+.amp-val{font-size:15px;font-weight:500;margin:0;}
+.amp-sub{font-size:10px;color:var(--color-text-secondary);margin:2px 0 0;}
+.bar-track{background:var(--color-background-tertiary);border-radius:3px;height:6px;margin-top:5px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;}
+.footnote{font-size:11px;color:var(--color-text-tertiary);margin-top:12px;line-height:1.6;}
+</style>
+
+<div style="padding:16px 0;">
+
+<div class="slider-row">
+  <label>Central bank base rate:</label>
+  <input type="range" id="rateSlider" min="0.25" max="8" step="0.25" value="5.0" style="flex:1;">
+  <span id="rateDisplay">5.00%</span>
+</div>
+
+<div class="mc-row" id="metrics"></div>
+
+<div class="sec-label">Maximum loan capacity by creditworthiness tier — fixed $2,000/month payment, 30-year amortization</div>
+
+<div class="chart-row">
+  <div class="chart-box" style="height:260px;"><canvas id="fanChart" role="img" aria-label="Fan chart showing diverging loan capacity lines for five creditworthiness tiers as base interest rate changes from 0.25% to 8%.">Fan chart of loan capacity by tier across rate range.</canvas></div>
+  <div class="chart-box" style="height:260px;"><canvas id="barChart" role="img" aria-label="Bar chart showing maximum loan amount for each creditworthiness tier at the currently selected base rate.">Bar chart of current loan capacity by tier.</canvas></div>
+</div>
+
+<div class="legend-grid" id="legendEl"></div>
+
+<div class="sec-label">Amplification gap — gain in borrowing capacity moving from 5% base rate to current rate</div>
+<div class="amp-grid" id="ampGrid"></div>
+
+<div class="sec-label">Wealth distribution (80/20 power law) & population share per tier</div>
+<div style="position:relative;height:160px;"><canvas id="wealthChart" role="img" aria-label="Stacked bar chart showing skewed wealth distribution across creditworthiness tiers following an 80/20 power law.">Wealth share vs population share by tier.</canvas></div>
+
+<div class="footnote">
+  <strong>Model assumptions:</strong> Fixed monthly payment $2,000 over 30 years. Credit spreads above base rate by tier: Elite +1.25%, Prime +2.5%, Standard +4.5%, Subprime +7.5%, Marginal +12.0%. Spread structure is illustrative of the Canadian/US mortgage and consumer credit market. Population shares follow an 80/20 Pareto distribution mapped to creditworthiness. Wealth shares derived from 80/20 recursive Pareto: top 5% = ~51%, next 15% = ~24%, next 30% = ~15%, next 25% = ~7%, bottom 25% = ~3%. Amplification gap = difference in max loan vs benchmark of 5.0% base rate.
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const PAYMENT = 2000;
+const YEARS = 30;
+const N = YEARS * 12;
+const BENCH_RATE = 5.0;
+
+const tiers = [
+  { name:"Elite",    sub:"Top 5% — credit 780+",  spread:1.25, color:"#185FA5", pop:5,  wealthPct:51 },
+  { name:"Prime",    sub:"5–20% — credit 740–779", spread:2.5,  color:"#1D9E75", pop:15, wealthPct:24 },
+  { name:"Standard", sub:"20–50% — credit 680–739",spread:4.5,  color:"#BA7517", pop:30, wealthPct:15 },
+  { name:"Subprime", sub:"50–75% — credit 600–679",spread:7.5,  color:"#D85A30", pop:25, wealthPct:7  },
+  { name:"Marginal", sub:"Bottom 25% — credit <600",spread:12.0,color:"#A32D2D", pop:25, wealthPct:3  },
+];
+
+function maxLoan(baseRate, tier) {
+  const annual = (baseRate + tier.spread) / 100;
+  const r = annual / 12;
+  if (r <= 0) return PAYMENT * N;
+  return PAYMENT * (1 - Math.pow(1+r, -N)) / r;
+}
+
+function fmt(v) { return '$' + Math.round(v/1000) + 'K'; }
+function fmtFull(v) { return '$' + Math.round(v).toLocaleString(); }
+
+const rateRange = [];
+for(let r=0.25; r<=8.01; r+=0.25) rateRange.push(parseFloat(r.toFixed(2)));
+
+const isDark = matchMedia('(prefers-color-scheme:dark)').matches;
+const gridCol = isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.06)';
+const textCol = isDark?'#999':'#888';
+
+function buildLegend(){
+  document.getElementById('legendEl').innerHTML = tiers.map(t=>`
+    <div class="leg-item">
+      <span class="leg-sq" style="background:${t.color}"></span>
+      <span><strong style="font-size:11px;color:var(--color-text-primary)">${t.name}</strong><br>${t.sub}</span>
+    </div>`).join('');
+}
+
+let fanChart, barChart, wealthChart;
+
+function buildFanChart(){
+  const ctx = document.getElementById('fanChart').getContext('2d');
+  const datasets = tiers.map((t,i)=>({
+    label:t.name,
+    data: rateRange.map(r=>maxLoan(r,t)/1000),
+    borderColor:t.color, backgroundColor:'transparent',
+    borderWidth:2, tension:0.2, pointRadius:0, pointHoverRadius:4,
+    borderDash: i>2 ? [4,3] : [],
+  }));
+  fanChart = new Chart(ctx,{
+    type:'line',
+    data:{labels:rateRange.map(r=>r+'%'), datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:isDark?'rgba(28,28,28,.96)':'rgba(255,255,255,.97)',
+        borderColor:isDark?'rgba(255,255,255,.12)':'rgba(0,0,0,.1)',borderWidth:1,
+        titleColor:isDark?'#eee':'#333',bodyColor:isDark?'#bbb':'#555',padding:8,
+        callbacks:{label:c=>` ${tiers[c.datasetIndex].name}: $${c.parsed.y.toFixed(0)}K`}
+      }},
+      scales:{
+        x:{ticks:{color:textCol,font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:9,callback:(v,i)=>rateRange[i]%1===0?rateRange[i]+'%':''},grid:{color:gridCol},title:{display:true,text:'Base rate',color:textCol,font:{size:10}}},
+        y:{ticks:{color:textCol,font:{size:10},callback:v=>'$'+v+'K'},grid:{color:gridCol},title:{display:true,text:'Max loan ($K)',color:textCol,font:{size:10}}}
+      }
+    }
+  });
+}
+
+let barInst;
+function buildBarChart(){
+  const ctx = document.getElementById('barChart').getContext('2d');
+  barInst = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:tiers.map(t=>t.name),
+      datasets:[{
+        label:'Max loan',
+        data:tiers.map(t=>maxLoan(5.0,t)/1000),
+        backgroundColor:tiers.map(t=>t.color),
+        borderRadius:4,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:isDark?'rgba(28,28,28,.96)':'rgba(255,255,255,.97)',
+        borderColor:isDark?'rgba(255,255,255,.12)':'rgba(0,0,0,.1)',borderWidth:1,
+        titleColor:isDark?'#eee':'#333',bodyColor:isDark?'#bbb':'#555',padding:8,
+        callbacks:{label:c=>` Max loan: $${(c.parsed.y*1000).toLocaleString()}`}
+      }},
+      scales:{
+        x:{ticks:{color:textCol,font:{size:11}},grid:{display:false}},
+        y:{ticks:{color:textCol,font:{size:10},callback:v=>'$'+v+'K'},grid:{color:gridCol},title:{display:true,text:'Max loan ($K)',color:textCol,font:{size:10}}}
+      }
+    }
+  });
+}
+
+function buildWealthChart(){
+  const ctx = document.getElementById('wealthChart').getContext('2d');
+  wealthChart = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:['Population share','Wealth share'],
+      datasets: tiers.map(t=>({
+        label:t.name,
+        data:[t.pop, t.wealthPct],
+        backgroundColor:t.color,
+        stack:'s',borderRadius:0,
+      }))
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:isDark?'rgba(28,28,28,.96)':'rgba(255,255,255,.97)',
+        borderColor:isDark?'rgba(255,255,255,.12)':'rgba(0,0,0,.1)',borderWidth:1,
+        titleColor:isDark?'#eee':'#333',bodyColor:isDark?'#bbb':'#555',padding:8,
+      }},
+      scales:{
+        x:{stacked:true,ticks:{color:textCol,font:{size:10},callback:v=>v+'%'},grid:{color:gridCol},max:100},
+        y:{stacked:true,ticks:{color:textCol,font:{size:12}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+function updateMetrics(baseRate){
+  const eliteLoan = maxLoan(baseRate, tiers[0]);
+  const margLoan  = maxLoan(baseRate, tiers[4]);
+  const ratio = eliteLoan/margLoan;
+  const eliteBench = maxLoan(BENCH_RATE, tiers[0]);
+  const margBench  = maxLoan(BENCH_RATE, tiers[4]);
+  const eliteGain  = eliteLoan - eliteBench;
+  const margGain   = margLoan  - margBench;
+  const ampFactor  = Math.abs(eliteGain/margGain);
+
+  document.getElementById('metrics').innerHTML = `
+    <div class="mc"><p class="mc-lbl">Elite max loan</p><p class="mc-val" style="color:#185FA5">${fmt(eliteLoan)}</p><p class="mc-sub">Rate: ${(baseRate+1.25).toFixed(2)}%</p></div>
+    <div class="mc"><p class="mc-lbl">Marginal max loan</p><p class="mc-val" style="color:#A32D2D">${fmt(margLoan)}</p><p class="mc-sub">Rate: ${(baseRate+12.0).toFixed(2)}%</p></div>
+    <div class="mc"><p class="mc-lbl">Elite-to-marginal ratio</p><p class="mc-val">${ratio.toFixed(1)}×</p><p class="mc-sub">Same $2,000/mo payment</p></div>
+    <div class="mc"><p class="mc-lbl">Amplification factor</p><p class="mc-val" style="color:${ampFactor>2?'#D85A30':'var(--color-text-primary)'}">${isFinite(ampFactor)?ampFactor.toFixed(1)+'×':'—'}</p><p class="mc-sub">Elite gain ÷ marginal gain vs 5% bench</p></div>
+  `;
+}
+
+function updateBarChart(baseRate){
+  barInst.data.datasets[0].data = tiers.map(t=>maxLoan(baseRate,t)/1000);
+  barInst.update('none');
+}
+
+function updateAmpGrid(baseRate){
+  const benchLoans = tiers.map(t=>maxLoan(BENCH_RATE,t));
+  const currLoans  = tiers.map(t=>maxLoan(baseRate,t));
+  const gains      = tiers.map((t,i)=>currLoans[i]-benchLoans[i]);
+  const maxGain    = Math.max(...gains.map(Math.abs));
+  const direction  = baseRate < BENCH_RATE ? 'gain' : baseRate > BENCH_RATE ? 'loss' : 'no change';
+
+  document.getElementById('ampGrid').innerHTML = tiers.map((t,i)=>{
+    const g = gains[i];
+    const sign = g>=0?'+':'';
+    const col = g>0?t.color: g<0?'#A32D2D':'var(--color-text-secondary)';
+    const barW = maxGain>0 ? Math.abs(g)/maxGain*100 : 0;
+    return `<div class="amp-card">
+      <p class="amp-tier" style="color:${t.color}">${t.name}</p>
+      <p class="amp-val" style="color:${col}">${sign}${fmt(Math.abs(g))}</p>
+      <p class="amp-sub">${sign}${(g/benchLoans[i]*100).toFixed(1)}% vs 5% bench</p>
+      <div class="bar-track"><div class="bar-fill" style="width:${barW.toFixed(1)}%;background:${col};"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function addRateAnnotation(rate){
+  const idx = rateRange.findIndex(r=>Math.abs(r-rate)<0.01);
+  if(idx<0) return;
+  fanChart.data.datasets.forEach(ds=>{
+    ds.pointRadius = rateRange.map((_,i)=>i===idx?5:0);
+    ds.pointHoverRadius = 6;
+  });
+  fanChart.update('none');
+}
+
+function onSlider(){
+  const rate = parseFloat(document.getElementById('rateSlider').value);
+  document.getElementById('rateDisplay').textContent = rate.toFixed(2)+'%';
+  updateMetrics(rate);
+  updateBarChart(rate);
+  updateAmpGrid(rate);
+  addRateAnnotation(rate);
+}
+
+buildLegend();
+buildFanChart();
+buildBarChart();
+buildWealthChart();
+onSlider();
+document.getElementById('rateSlider').addEventListener('input', onSlider);
+</script>

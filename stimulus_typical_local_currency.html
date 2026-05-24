@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pandemic Stimulus — Typical Household, Local Currency</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1117;--s1:#161b25;--s2:#1c2130;
+  --brd:rgba(255,255,255,0.08);
+  --txt:#dfe3ec;--mut:#6b7280;--dim:#252d3d;
+  --fiscal:#5b9bd5;--monetary:#e8b84b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:'Source Sans 3',sans-serif;font-size:14px;padding:32px 40px 48px;max-width:1100px;margin:0 auto;}
+
+h1{font-family:'Playfair Display',serif;font-size:26px;line-height:1.15;margin-bottom:6px;}
+h1 em{font-style:italic;color:var(--mut);}
+.intro{font-size:12px;color:var(--mut);line-height:1.75;margin-bottom:16px;max-width:820px;}
+.intro strong{color:var(--txt);}
+
+/* Correction note */
+.corr-strip{display:flex;gap:0;border:1px solid var(--brd);border-radius:6px;overflow:hidden;margin-bottom:24px;}
+.ci{flex:1;padding:10px 12px;background:var(--s1);border-right:1px solid var(--brd);text-align:center;}
+.ci:last-child{border-right:none;}
+.ci-tier{font-size:9.5px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin-bottom:3px;}
+.ci-val{font-size:17px;font-weight:600;font-family:'Playfair Display',serif;}
+.ci-note{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3;}
+
+/* Country tabs */
+.ctabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:20px;}
+.ctab{padding:6px 14px;font-size:12px;cursor:pointer;border:1px solid var(--brd);border-radius:6px;background:var(--s1);color:var(--mut);font-family:'JetBrains Mono',monospace;transition:all .15s;}
+.ctab.on{font-weight:600;}
+
+/* Table */
+.tbl-wrap{margin-bottom:32px;}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:9px 13px;border-bottom:2px solid var(--brd);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);font-weight:400;text-align:right;white-space:nowrap;}
+thead th:first-child{text-align:left;}
+tbody td{padding:10px 13px;border-bottom:1px solid rgba(255,255,255,0.04);text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;}
+tbody td:first-child{text-align:left;font-family:'Source Sans 3',sans-serif;font-size:12.5px;white-space:normal;}
+tbody tr.total-row td{background:var(--s2);border-top:2px solid var(--brd);font-weight:600;}
+tbody tr:hover td{background:rgba(255,255,255,0.02);}
+.f{color:var(--fiscal);}
+.m{color:var(--monetary);}
+.tot{color:var(--txt);font-weight:600;}
+.pct{font-size:11px;}
+.dim{color:var(--mut);font-size:11px;}
+.tier-label{font-weight:600;display:block;}
+.tier-sub{font-size:11px;color:var(--mut);}
+
+/* Bar chart */
+.chart-wrap{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:12px;}
+.chart-box{}
+.chart-title{font-size:12px;font-weight:600;color:var(--txt);margin-bottom:3px;}
+.chart-note{font-size:10.5px;color:var(--mut);margin-bottom:10px;}
+.chart-canvas{position:relative;height:280px;}
+canvas{display:block;width:100%;height:100%;}
+.leg{display:flex;gap:16px;font-size:11px;color:var(--mut);margin-top:8px;}
+.li{display:flex;align-items:center;gap:5px;}
+.lsq{width:11px;height:11px;border-radius:2px;}
+
+.fn{font-size:11px;color:var(--mut);margin-top:20px;border-top:1px solid var(--brd);padding-top:14px;line-height:1.75;max-width:880px;}
+</style>
+</head>
+<body>
+
+<h1>Pandemic Stimulus — <em>Typical household gain, in local currency</em></h1>
+
+<p class="intro">
+  All figures in <strong>local currency</strong>. Each row shows what the <strong>typical (median) household within that tier</strong>
+  gained — corrected for the within-tier power-law skew. The "% of median income" column shows
+  the gain as a multiple of the national median annual income. The bar charts use <strong>actual dollar amounts</strong> — no log scale.
+</p>
+
+<div class="corr-strip">
+  <div class="ci"><div class="ci-tier">Bottom 80%</div><div class="ci-val" style="color:#4bbf8e">0.86×</div><div class="ci-note">typical is 86%<br>of mean</div></div>
+  <div class="ci"><div class="ci-tier">Next 16%</div><div class="ci-val" style="color:#5b9bd5">0.86×</div><div class="ci-note">typical is 86%<br>of mean</div></div>
+  <div class="ci"><div class="ci-tier">Next 3.2%</div><div class="ci-val" style="color:#b07fd4">0.83×</div><div class="ci-note">typical is 83%<br>of mean</div></div>
+  <div class="ci"><div class="ci-tier">Next 0.64%</div><div class="ci-val" style="color:#e8b84b">0.56×</div><div class="ci-note">typical is 56%<br>of mean</div></div>
+  <div class="ci"><div class="ci-tier">Top 0.01%</div><div class="ci-val" style="color:#e05c4b">0.29×</div><div class="ci-note">typical is 29%<br>of mean</div></div>
+</div>
+
+<div class="ctabs" id="ctabs"></div>
+
+<div class="tbl-wrap">
+  <table>
+    <thead id="tHead"></thead>
+    <tbody id="tBody"></tbody>
+  </table>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-box">
+    <div class="chart-title" id="ct1"></div>
+    <div class="chart-note">Actual amounts — fiscal vs monetary per tier. The bottom 80% bar is honest: a small absolute gain.</div>
+    <div class="chart-canvas"><canvas id="c1"></canvas></div>
+    <div class="leg"><div class="li"><span class="lsq" style="background:var(--fiscal)"></span>Fiscal</div><div class="li"><span class="lsq" style="background:var(--monetary)"></span>Monetary</div></div>
+  </div>
+  <div class="chart-box">
+    <div class="chart-title" id="ct2"></div>
+    <div class="chart-note">Combined gain as % of national median annual income — how many years of income each tier received.</div>
+    <div class="chart-canvas"><canvas id="c2"></canvas></div>
+    <div class="leg"><div class="li"><span class="lsq" style="background:#9b6fcc"></span>Years of median income</div></div>
+  </div>
+</div>
+
+<div class="fn" id="fn"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const CORR = [0.861, 0.861, 0.832, 0.557, 0.287];
+
+const TIERS = [
+  { label:'Bottom 80%',  pctile:'0–80th',          color:'#4bbf8e', pop:0.80   },
+  { label:'Next 16%',    pctile:'80th–96th',        color:'#5b9bd5', pop:0.16   },
+  { label:'Next 3.2%',   pctile:'96th–99.35th',     color:'#b07fd4', pop:0.032  },
+  { label:'Next 0.64%',  pctile:'99.35th–99.99th',  color:'#e8b84b', pop:0.0064 },
+  { label:'Top 0.01%',   pctile:'99.99th–100th',    color:'#e05c4b', pop:0.0001 },
+];
+
+const FISCAL_SHARE   = [0.55, 0.22, 0.12, 0.07, 0.04];
+const MONETARY_SHARE = [0.20, 0.17, 0.13, 0.12, 0.38];
+
+const COUNTRIES = [
+  {
+    id:'CA', name:'Canada', flag:'🇨🇦', currency:'CAD', sym:'C$', fx:0.785, color:'#e05c4b',
+    fiscalUSD:272, monetaryUSD:1963,
+    households:[11600000, 2320000, 464000, 92800, 1450],
+    medianIncomeLocal:52000,
+  },
+  {
+    id:'US', name:'United States', flag:'🇺🇸', currency:'USD', sym:'$', fx:1.0, color:'#5b9bd5',
+    fiscalUSD:5300, monetaryUSD:22000,
+    households:[105600000, 21120000, 4224000, 844800, 13200],
+    medianIncomeLocal:67000,
+  },
+  {
+    id:'UK', name:'United Kingdom', flag:'🇬🇧', currency:'GBP', sym:'£', fx:1.30, color:'#c07acc',
+    fiscalUSD:520, monetaryUSD:1430,
+    households:[22400000, 4480000, 896000, 179200, 2800],
+    medianIncomeLocal:32000,
+  },
+  {
+    id:'AU', name:'Australia', flag:'🇦🇺', currency:'AUD', sym:'A$', fx:0.755, color:'#4bbf8e',
+    fiscalUSD:211, monetaryUSD:1510,
+    households:[8400000, 1680000, 336000, 67200, 1050],
+    medianIncomeLocal:63000,
+  },
+  {
+    id:'NZ', name:'New Zealand', flag:'🇳🇿', currency:'NZD', sym:'NZ$', fx:0.700, color:'#e8b84b',
+    fiscalUSD:63, monetaryUSD:196,
+    households:[1440000, 288000, 57600, 11520, 180],
+    medianIncomeLocal:56000,
+  },
+];
+
+function typLocal(c, ti, type) {
+  // USD total for tier
+  const share = type==='fiscal' ? FISCAL_SHARE[ti] : MONETARY_SHARE[ti];
+  const total  = type==='fiscal' ? c.fiscalUSD : c.monetaryUSD;
+  const meanUSD = (total * 1e9 * share) / c.households[ti];
+  const typUSD  = meanUSD * CORR[ti];
+  // convert to local
+  return typUSD / c.fx;
+}
+
+function fmtL(v, sym) {
+  const a = Math.abs(v);
+  let s;
+  if (a >= 1e9)      s = sym + (a/1e9).toFixed(2)+'B';
+  else if (a >= 1e6) s = sym + (a/1e6).toFixed(2)+'M';
+  else if (a >= 1e5) s = sym + Math.round(a/1e3).toLocaleString()+'K';
+  else if (a >= 1e3) s = sym + Math.round(a).toLocaleString();
+  else               s = sym + a.toFixed(0);
+  return v<0?'−'+s:s;
+}
+
+function pctIncome(v, med) {
+  const m = v / med;
+  if (m >= 100)  return m.toFixed(0)+'× income';
+  if (m >= 10)   return m.toFixed(1)+'× income';
+  if (m >= 1)    return m.toFixed(2)+'× income';
+  return (m*100).toFixed(1)+'% of income';
+}
+
+let active = COUNTRIES[0];
+let c1inst = null, c2inst = null;
+
+function buildTable(c) {
+  document.getElementById('tHead').innerHTML = `
+    <tr>
+      <th style="text-align:left;min-width:160px">Wealth tier</th>
+      <th>Households<br>in tier</th>
+      <th class="f">Fiscal<br>typical HH</th>
+      <th class="m">Monetary<br>typical HH</th>
+      <th class="tot">Combined<br>typical HH</th>
+      <th>As % of<br>median income</th>
+      <th class="dim">Fiscal<br>mean (uncorrected)</th>
+      <th class="dim">Monetary<br>mean (uncorrected)</th>
+    </tr>`;
+
+  let rows = '';
+  TIERS.forEach((tier, ti) => {
+    const fT = typLocal(c, ti, 'fiscal');
+    const mT = typLocal(c, ti, 'monetary');
+    const tot = fT + mT;
+    const fM = (c.fiscalUSD * 1e9 * FISCAL_SHARE[ti]) / c.households[ti] / c.fx;
+    const mM = (c.monetaryUSD * 1e9 * MONETARY_SHARE[ti]) / c.households[ti] / c.fx;
+    const incStr = pctIncome(tot, c.medianIncomeLocal);
+    const bg = ti===4 ? 'background:rgba(224,92,75,0.08);' : '';
+
+    rows += `<tr style="${bg}">
+      <td>
+        <span class="tier-label" style="color:${tier.color}">${tier.label}</span>
+        <span class="tier-sub">${tier.pctile} percentile</span>
+      </td>
+      <td class="dim">${c.households[ti].toLocaleString()}</td>
+      <td class="f">${fmtL(fT, c.sym)}</td>
+      <td class="m">${fmtL(mT, c.sym)}</td>
+      <td class="tot">${fmtL(tot, c.sym)}</td>
+      <td style="color:${tier.color};font-size:11.5px;">${incStr}</td>
+      <td class="dim">${fmtL(fM, c.sym)}</td>
+      <td class="dim">${fmtL(mM, c.sym)}</td>
+    </tr>`;
+  });
+
+  // Totals row — sum of typical (note: not additive across tiers in strict sense, but useful as summary)
+  const totF = TIERS.reduce((_,ti) => _ + typLocal(c, ti, 'fiscal'),   0);
+  const totM = TIERS.reduce((_,ti) => _ + typLocal(c, ti, 'monetary'), 0);
+  rows += `<tr class="total-row">
+    <td><strong>All tiers — sum</strong><br><span class="tier-sub">Sum across tiers (illustrative)</span></td>
+    <td class="dim">—</td>
+    <td class="f">${fmtL(totF, c.sym)}</td>
+    <td class="m">${fmtL(totM, c.sym)}</td>
+    <td class="tot">${fmtL(totF+totM, c.sym)}</td>
+    <td class="dim">—</td>
+    <td class="dim">—</td>
+    <td class="dim">—</td>
+  </tr>`;
+
+  document.getElementById('tBody').innerHTML = rows;
+}
+
+function buildCharts(c) {
+  const labels = TIERS.map(t => t.label);
+  const fVals  = TIERS.map((_,ti) => Math.round(typLocal(c, ti, 'fiscal')));
+  const mVals  = TIERS.map((_,ti) => Math.round(typLocal(c, ti, 'monetary')));
+  const totVals= TIERS.map((_,ti) => Math.round(typLocal(c, ti, 'fiscal') + typLocal(c, ti, 'monetary')));
+  const incVals= TIERS.map((_,ti) => (typLocal(c,ti,'fiscal')+typLocal(c,ti,'monetary')) / c.medianIncomeLocal);
+  const colors = TIERS.map(t => t.color);
+
+  const gc = 'rgba(255,255,255,0.04)', tc = '#6b7280';
+  const ttp = { backgroundColor:'rgba(12,15,22,.97)', borderColor:'rgba(255,255,255,.09)', borderWidth:1, titleColor:'#dfe3ec', bodyColor:'#9aa1b5', padding:10 };
+
+  function makeCanvas(id) {
+    const cv = document.getElementById(id);
+    const dpr = window.devicePixelRatio || 1;
+    const pw = cv.parentElement.clientWidth;
+    cv.width = pw*dpr; cv.height = 280*dpr;
+    cv.style.width = pw+'px'; cv.style.height = '280px';
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    return ctx;
+  }
+
+  if (c1inst) { c1inst.destroy(); c1inst = null; }
+  if (c2inst) { c2inst.destroy(); c2inst = null; }
+
+  document.getElementById('ct1').textContent =
+    `${c.flag} ${c.name} — typical household gain by tier (${c.currency})`;
+
+  c1inst = new Chart(makeCanvas('c1'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        { label:'Fiscal', data:fVals,
+          backgroundColor:'#5b9bd5'+'88', borderColor:'#5b9bd5', borderWidth:1.5, borderRadius:3 },
+        { label:'Monetary', data:mVals,
+          backgroundColor:'#e8b84b'+'aa', borderColor:'#e8b84b', borderWidth:1.5, borderRadius:3 },
+      ]
+    },
+    options:{
+      responsive:false, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{...ttp, callbacks:{
+          title: items => `${c.flag} ${c.name} — ${labels[items[0].dataIndex]}`,
+          label: item => `  ${item.dataset.label}: ${fmtL(item.parsed.y, c.sym)}`,
+        }},
+        datalabels: false,
+      },
+      scales:{
+        x:{ ticks:{color:tc,font:{size:10.5}}, grid:{display:false} },
+        y:{ ticks:{color:tc,font:{size:9.5},callback:v=>fmtL(v,c.sym)}, grid:{color:gc},
+            title:{display:true,text:`${c.currency} per typical household`,color:tc,font:{size:9.5}} }
+      }
+    }
+  });
+
+  document.getElementById('ct2').textContent =
+    `${c.flag} ${c.name} — combined gain as multiple of median annual income (${c.currency} ${(c.medianIncomeLocal/1000).toFixed(0)}K)`;
+
+  c2inst = new Chart(makeCanvas('c2'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'× median income',
+        data: incVals,
+        backgroundColor: colors.map(col => col+'aa'),
+        borderColor: colors,
+        borderWidth: 1.5,
+        borderRadius: 3,
+      }]
+    },
+    options:{
+      responsive:false, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{...ttp, callbacks:{
+          title: items => `${c.flag} ${c.name} — ${labels[items[0].dataIndex]}`,
+          label: item => {
+            const v = item.parsed.y;
+            if (v>=1) return `  ${v.toFixed(1)}× national median income`;
+            return `  ${(v*100).toFixed(1)}% of national median income`;
+          },
+        }},
+      },
+      scales:{
+        x:{ ticks:{color:tc,font:{size:10.5}}, grid:{display:false} },
+        y:{ ticks:{color:tc,font:{size:9.5},callback:v=>v>=1?v.toFixed(1)+'×':(v*100).toFixed(0)+'%'}, grid:{color:gc},
+            title:{display:true,text:'× median annual income',color:tc,font:{size:9.5}} }
+      }
+    }
+  });
+}
+
+function buildFn(c) {
+  const bot80F = fmtL(typLocal(c,0,'fiscal'),   c.sym);
+  const bot80M = fmtL(typLocal(c,0,'monetary'), c.sym);
+  const bot80T = fmtL(typLocal(c,0,'fiscal')+typLocal(c,0,'monetary'), c.sym);
+  const top01F = fmtL(typLocal(c,4,'fiscal'),   c.sym);
+  const top01M = fmtL(typLocal(c,4,'monetary'), c.sym);
+  const top01T = fmtL(typLocal(c,4,'fiscal')+typLocal(c,4,'monetary'), c.sym);
+  const top01Inc = ((typLocal(c,4,'fiscal')+typLocal(c,4,'monetary'))/c.medianIncomeLocal).toFixed(0);
+  const bot80Inc = (((typLocal(c,0,'fiscal')+typLocal(c,0,'monetary'))/c.medianIncomeLocal)*100).toFixed(1);
+  document.getElementById('fn').innerHTML = `
+    <strong>Reading this for ${c.flag} ${c.name}.</strong>
+    A typical household in the bottom 80% received ${bot80F} in fiscal transfers and ${bot80M} in monetary wealth gains —
+    combined ${bot80T}, equivalent to about ${bot80Inc}% of the national median annual income.
+    A typical household in the top 0.01% received ${top01F} fiscal and ${top01M} monetary —
+    combined ${top01T}, equivalent to approximately ${top01Inc} years of median income.
+    <br><br>
+    <strong>Note on the bar charts.</strong> Using actual (linear scale) values on the left chart honestly shows
+    that the bottom 80% bar is a sliver at the base. This is the correct visual impression: the absolute dollar
+    gains for the bottom 80% are small, and the gains for the top tiers are large — the charts should look this way.
+    The right chart (income multiples) reframes the same data relative to what income means to each tier.
+    <br><br>
+    <strong>Correction factors</strong> derived from Pareto α = 1.161 (80/20 distribution).
+    Within-tier typical = median of tier = W(mid-percentile of tier).
+    Correction ratios: 0.86× (bottom 80%), 0.86× (next 16%), 0.83× (next 3.2%), 0.56× (next 0.64%), 0.29× (top 0.01%).
+    Fiscal and monetary totals unchanged from main table; only per-household presentation corrected.
+    Median income (${c.currency}): ${c.medianIncomeLocal.toLocaleString()} / year.`;
+}
+
+function setCountry(c) {
+  active = c;
+  document.querySelectorAll('.ctab').forEach(el => {
+    const on = el.dataset.id === c.id;
+    el.classList.toggle('on', on);
+    el.style.borderColor = on ? c.color : '';
+    el.style.color = on ? c.color : '';
+  });
+  buildTable(c); buildCharts(c); buildFn(c);
+}
+
+const tabsEl = document.getElementById('ctabs');
+COUNTRIES.forEach(c => {
+  const btn = document.createElement('button');
+  btn.className = 'ctab';
+  btn.dataset.id = c.id;
+  btn.textContent = `${c.flag} ${c.name}`;
+  btn.addEventListener('click', () => setCountry(c));
+  tabsEl.appendChild(btn);
+});
+
+setCountry(COUNTRIES[0]);
+window.addEventListener('resize', () => { buildCharts(active); });
+</script>
+</body>
+</html>
