@@ -90,14 +90,14 @@ canvas{display:block;width:100%;}
 
 <div class="gapbox">
   <div>
-    <div class="gb-lbl">Dollar gap — top 0.01% vs bottom 80%</div>
+    <div class="gb-lbl">Dollar gap — top 0.01% vs the bottom of the distribution</div>
     <div class="gb-val" id="gapVal">—</div>
   </div>
   <div class="gb-sub" id="gapSub">Same $2,000/month payment. Same 30-year mortgage. The gap is entirely a product of creditworthiness tier and the rate the lender charges — not effort or risk in any productive sense.</div>
 </div>
 
-<div class="fn">
-  <strong>Credit spread function.</strong> The spread above the base rate is modelled as a continuous, monotonically decreasing function of population percentile, calibrated to observed anchors: bottom of population ~22pp spread (sub-prime / high-risk lending); 50th percentile ~9.5pp; 80th percentile ~4.5pp; 96th percentile ~2.4pp; 99th percentile ~1.5pp; top 0.01% ~0.5pp. This is a simplification — in reality, large fractions of the population cannot qualify for mortgage lending at all at high base rates. Loan formula: P = 2,000 × [1−(1+r)^(−360)] / r where r = (base + spread) / 12 / 100. At r=0, P = $720,000. The super-elite (top 0.01%) occupy 0.01% of the chart width — a single pixel or less — shown here as a callout at the right edge.
+<div class="fn"><p>
+  <strong>Credit spread function.</strong> The spread above the base rate is modelled as a continuous, monotonically decreasing function of population percentile, calibrated to observed anchors: bottom of population ~22pp spread (sub-prime / high-risk lending); 50th percentile ~9.5pp; 80th percentile ~4.5pp; 96th percentile ~2.4pp; 99th percentile ~1.5pp; top 0.01% ~0.5pp. This is a simplification — in reality, large fractions of the population cannot qualify for mortgage lending at all at high base rates. Loan formula: P = 2,000 × [1−(1+r)^(−360)] / r where r = (base + spread) / 12 / 100. At r=0, P = $720,000. Tier bands follow the self-similar 80/20 decomposition: Majority (bottom 80%), Affluent (80th–96th), Upper (96th–99.2th), Elite (99.2th–99.84th), Ultra-elite (top 0.16%). The top 0.01% occupy 0.01% of the chart width — a single pixel or less — shown here as a callout at the right edge. Illustrative calibration.</p><p style="margin-top:8px;">Dougald Lamont · <em>The Rules Are the Game</em> (working paper) · Model and code: <a href="https://github.com/dflamont-dev/econresearch" style="color:var(--c1);">github.com/dflamont-dev/econresearch</a></p>
 </div>
 
 <script>
@@ -157,7 +157,7 @@ function loanAt(pct, base) {
 const MARKERS = [
   { pct: 80.00, label: '80th pct', sub: 'Majority / Affluent boundary', color: '#5b9bd5' },
   { pct: 96.00, label: '96th pct', sub: 'Affluent / Upper boundary',   color: '#b07fd4' },
-  { pct: 99.35, label: '99.35th', sub: 'Upper / Elite boundary',       color: '#e8b84b' },
+  { pct: 99.20, label: '99.2 pct', sub: 'Upper / Elite boundary',       color: '#e8b84b', dy: 26, align: 'right' },
 ];
 
 // ── Canvas setup ──────────────────────────────────────────────────────────────
@@ -166,7 +166,8 @@ const ctx = cv.getContext('2d');
 const DPR = window.devicePixelRatio || 1;
 
 function resize() {
-  const W = cv.parentElement.clientWidth;
+  const par = cv.parentElement, cs = getComputedStyle(par);
+  const W = Math.floor(par.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
   const H = Math.round(W * 0.50);
   cv.width  = W * DPR;
   cv.height = H * DPR;
@@ -228,7 +229,7 @@ function draw(base) {
   ctx.restore();
 
   // ── Tier boundary shading (vertical bands) ──
-  const bandBounds = [0, 80, 96, 99.35, 99.99, 100];
+  const bandBounds = [0, 80, 96, 99.2, 99.84, 100];
   const bandColors = ['#4bbf8e', '#5b9bd5', '#b07fd4', '#e8b84b', '#e05c4b'];
   for (let b = 0; b < bandColors.length; b++) {
     const x0 = xOf(bandBounds[b]);
@@ -250,7 +251,7 @@ function draw(base) {
 
   // ── Filled area under curve (horizontal gradient by tier colour) ──
   // Draw 5 separate filled segments so each tier region has the right colour
-  const tierBounds = [0, 80, 96, 99.35, 99.99];
+  const tierBounds = [0, 80, 96, 99.2, 99.84];
 
   for (let ti = 0; ti < bandColors.length; ti++) {
     const p0 = tierBounds[ti];
@@ -341,12 +342,13 @@ function draw(base) {
     const x = xOf(m.pct);
     const labelLoan = loanAt(m.pct, base);
     ctx.font = '600 10px Source Sans 3,sans-serif';
-    ctx.textAlign = 'center';
+    const dy = m.dy || 0, lx = m.align === 'left' ? x + 4 : m.align === 'right' ? x - 4 : x;
+    ctx.textAlign = m.align || 'center';
     ctx.fillStyle = m.color + 'cc';
-    ctx.fillText(m.label, x, pad.top + 14);
+    ctx.fillText(m.label, lx, pad.top + 14 + dy);
     ctx.font = '9px JetBrains Mono,monospace';
     ctx.fillStyle = m.color + '77';
-    ctx.fillText('$'+Math.round(labelLoan/1000)+'K', x, pad.top + 25);
+    ctx.fillText('$'+Math.round(labelLoan/1000)+'K', lx, pad.top + 25 + dy);
   });
 
   // ── Person icons row ──
@@ -356,7 +358,7 @@ function draw(base) {
   for (let i = 0; i < 100; i++) {
     const px = pad.left + (i + 0.5) * iconSp;
     let col = '#4bbf8e';
-    if (i >= 99)      col = '#e05c4b';  // approx elite/super
+    if (i >= 99)      col = '#e8b84b';  // top 1%: elite and ultra-elite (99.2th+), shown at 1% resolution
     else if (i >= 96) col = '#b07fd4';
     else if (i >= 80) col = '#5b9bd5';
 
@@ -401,7 +403,7 @@ function draw(base) {
   // Callout box to the left (so it fits in chart)
   const cbW = 130, cbH = 46;
   const cbX = Math.min(seX - cbW - 12, pad.left + cW - cbW - 6);
-  const cbY = Math.max(pad.top + 4, seY - cbH/2);
+  const cbY = Math.max(pad.top + 52, seY - cbH/2);
 
   ctx.fillStyle = 'rgba(14,17,23,0.92)';
   ctx.strokeStyle = '#e05c4b77';
@@ -422,7 +424,7 @@ function draw(base) {
   ctx.font = '600 10px Source Sans 3,sans-serif';
   ctx.textAlign = 'left';
   ctx.fillStyle = '#e05c4b';
-  ctx.fillText('Super-elite (top 0.01%)', cbX + 8, cbY + 15);
+  ctx.fillText('Top 0.01%', cbX + 8, cbY + 15);
   ctx.font = '11px JetBrains Mono,monospace';
   ctx.fillStyle = '#e8e6df';
   ctx.fillText('$'+Math.round(seLoan/1000)+'K max loan', cbX + 8, cbY + 32);
@@ -437,7 +439,7 @@ const STRIP_PTS = [
   { label:'50th pct',     pct:50,    color:'#4bbf8e', desc:'Median borrower' },
   { label:'80th pct',     pct:80,    color:'#5b9bd5', desc:'Top of Majority' },
   { label:'96th pct',     pct:96,    color:'#b07fd4', desc:'Top of Affluent' },
-  { label:'Top 0.01%',    pct:99.99, color:'#e05c4b', desc:'Super-elite' },
+  { label:'Top 0.01%',    pct:99.99, color:'#e05c4b', desc:'Ultra-elite apex' },
 ];
 
 function updateStrip(base) {
@@ -460,7 +462,7 @@ function updateStrip(base) {
     `At this rate, the person at the bottom can borrow $${Math.round(loanAt(0,base)/1000)}K. ` +
     `The median borrower can get $${Math.round(p50/1000)}K. ` +
     `The top of the majority (80th pct) reaches $${Math.round(p80/1000)}K. ` +
-    `The super-elite can access $${Math.round(super_/1000)}K — ` +
+    `The top 0.01% can access $${Math.round(super_/1000)}K — ` +
     `${(super_/loanAt(0,base)).toFixed(1)}× more than the person at the bottom, on the same $2,000/month.`;
 }
 

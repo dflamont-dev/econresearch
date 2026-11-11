@@ -1,7 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maximum Loan vs Interest Rate</title>
+<meta name="description" content="How a fixed $2,000 monthly payment translates into a maximum 30-year loan as the interest rate moves from 20% to 0%.">
+<style>
+:root{
+  --color-text-primary:#1a1a1a; --color-text-secondary:#666; --color-text-tertiary:#888;
+  --color-background-primary:#fff; --color-background-secondary:#f4f5f7;
+  --border-radius-md:8px; --accent:#378ADD;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --color-text-primary:#e8e8e8; --color-text-secondary:#a8a8a8; --color-text-tertiary:#888;
+    --color-background-primary:#121417; --color-background-secondary:#1d2025;
+  }
+}
+:root[data-theme="dark"]{
+  --color-text-primary:#e8e8e8; --color-text-secondary:#a8a8a8; --color-text-tertiary:#888;
+  --color-background-primary:#121417; --color-background-secondary:#1d2025;
+}
+*{box-sizing:border-box;}
+body{margin:0 auto;max-width:860px;padding:24px 16px 32px;background:var(--color-background-primary);color:var(--color-text-primary);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+h1{font-size:20px;font-weight:600;margin:0 0 4px;}
+.sub{font-size:13px;color:var(--color-text-secondary);margin:0 0 8px;line-height:1.5;}
+input[type=range]{accent-color:var(--accent);}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:2rem;}
+.card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:1rem;}
+.card p{margin:0;}
+.lbl{font-size:13px;color:var(--color-text-secondary);margin:0 0 4px !important;}
+.val{font-size:28px;font-weight:500;}
+.byline{font-size:11px;color:var(--color-text-tertiary);margin-top:14px;line-height:1.6;}
+.byline a{color:var(--accent);}
+@media(max-width:480px){.cards{grid-template-columns:1fr;}.val{font-size:24px;}}
+</style>
+</head>
+<body>
 
-<h2 class="sr-only">Interactive slider showing how a fixed $2,000 monthly payment translates to a maximum loan as the interest rate moves from 20% down to 0%.</h2>
+<h1>Maximum loan vs interest rate</h1>
+<p class="sub">Lenders fix the monthly payment a borrower can carry and solve for the largest loan it supports. Drag the rate: the same $2,000 a month buys a far larger loan as rates approach zero.</p>
 
-<div style="padding: 1.5rem 0 0;">
+<div style="padding: 1rem 0 0;">
 
   <div style="display:flex; align-items:center; gap:16px; margin-bottom:2rem;">
     <label for="rateSlider" style="font-size:14px; color:var(--color-text-secondary); white-space:nowrap;">Interest rate</label>
@@ -9,24 +50,27 @@
     <span id="rateVal" style="font-size:16px; font-weight:500; min-width:52px; text-align:right;">5.00%</span>
   </div>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:2rem;">
-    <div style="background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:1rem;">
-      <p style="font-size:13px; color:var(--color-text-secondary); margin:0 0 4px;">Maximum loan</p>
-      <p id="loanAmt" style="font-size:28px; font-weight:500; margin:0; color:var(--color-text-primary);">$418,000</p>
+  <div class="cards">
+    <div class="card">
+      <p class="lbl">Maximum loan</p>
+      <p id="loanAmt" class="val">$373K</p>
     </div>
-    <div style="background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:1rem;">
-      <p style="font-size:13px; color:var(--color-text-secondary); margin:0 0 4px;">Interest paid over 30 years</p>
-      <p id="intAmt" style="font-size:28px; font-weight:500; margin:0; color:var(--color-text-primary);">$302,000</p>
+    <div class="card">
+      <p class="lbl">Interest paid over 30 years</p>
+      <p id="intAmt" class="val">$347K</p>
     </div>
   </div>
 
   <div style="position:relative; width:100%; height:300px;">
-    <canvas id="loanChart" role="img" aria-label="Line chart showing maximum loan amount for a $2,000 monthly payment as interest rate falls from 20% to 0%, rising steeply as rates approach zero.">At 0% rate: $720,000. At 5%: $418,000. At 10%: $228,000. At 20%: $115,000.</canvas>
+    <canvas id="loanChart" role="img" aria-label="Line chart showing maximum loan amount for a $2,000 monthly payment as interest rate falls from 20% to 0%, rising steeply as rates approach zero.">At 0%: $720,000. At 4%: $419,000. At 5%: $373,000. At 10%: $228,000. At 20%: $120,000.</canvas>
   </div>
 
   <div style="margin-top:1rem; font-size:12px; color:var(--color-text-secondary);">
-    Fixed payment <strong>$2,000 / month</strong> · 30-year amortisation · P = PMT × [1 − (1+r)⁻ⁿ] / r
+    Fixed payment <strong>$2,000 / month</strong> · 30-year amortization · P<sub>max</sub> = M × [1 − (1+r)⁻ⁿ] / r ·
+    At 0%: $720K · 4%: $419K · 5%: $373K · 10%: $228K · 20%: $120K
   </div>
+
+  <p class="byline">Dougald Lamont · <em>The Rules Are the Game</em> (working paper) · Model and code: <a href="https://github.com/dflamont-dev/econresearch">github.com/dflamont-dev/econresearch</a></p>
 
 </div>
 
@@ -40,13 +84,6 @@ function maxLoan(rate) {
   return PMT * (1 - Math.pow(1 + r, -N)) / r;
 }
 
-function fmtMoney(v) {
-  if (v >= 1e6) return '$' + (v / 1e6).toFixed(3) + 'M';
-  return '$' + Math.round(v / 1000) * 1000 > 999
-    ? '$' + (Math.round(v / 1000)).toLocaleString() + ',000'
-    : '$' + Math.round(v).toLocaleString();
-}
-
 function fmtClean(v) {
   if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
   return '$' + Math.round(v / 1000).toLocaleString() + 'K';
@@ -56,11 +93,12 @@ const rates = [];
 for (let r = 0; r <= 20; r += 0.25) rates.push(+r.toFixed(2));
 const loans = rates.map(r => Math.round(maxLoan(r)));
 
-const isDark = matchMedia('(prefers-color-scheme:dark)').matches;
+const isDark = document.documentElement.dataset.theme === 'dark' ||
+  (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme:dark)').matches);
 const lineColor = '#378ADD';
 const fillColor = isDark ? 'rgba(55,138,221,0.12)' : 'rgba(55,138,221,0.10)';
 const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-const tickColor = isDark ? '#888' : '#999';
+const tickColor = isDark ? '#999' : '#888';
 
 const ctx = document.getElementById('loanChart').getContext('2d');
 const chart = new Chart(ctx, {
@@ -68,62 +106,38 @@ const chart = new Chart(ctx, {
   data: {
     labels: rates.map(r => r + '%'),
     datasets: [{
-      label: 'Max loan',
-      data: loans,
-      borderColor: lineColor,
-      backgroundColor: fillColor,
-      fill: true,
-      tension: 0.3,
-      pointRadius: 0,
-      pointHoverRadius: 5,
-      borderWidth: 2.5,
+      label: 'Max loan', data: loans,
+      borderColor: lineColor, backgroundColor: fillColor, fill: true,
+      tension: 0.3, pointRadius: 0, pointHoverRadius: 5, borderWidth: 2.5,
     }]
   },
   options: {
-    responsive: true,
-    maintainAspectRatio: false,
+    responsive: true, maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { display: false },
       tooltip: {
         backgroundColor: isDark ? 'rgba(20,20,20,0.95)' : 'rgba(255,255,255,0.97)',
-        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-        borderWidth: 1,
-        titleColor: isDark ? '#eee' : '#333',
-        bodyColor: isDark ? '#bbb' : '#555',
-        callbacks: {
-          label: c => ' Max loan: ' + fmtClean(c.parsed.y)
-        }
-      },
-      annotation: {}
+        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', borderWidth: 1,
+        titleColor: isDark ? '#eee' : '#333', bodyColor: isDark ? '#bbb' : '#555',
+        callbacks: { label: c => ' Max loan: ' + fmtClean(c.parsed.y) }
+      }
     },
     scales: {
       x: {
-        ticks: {
-          color: tickColor,
-          font: { size: 11 },
-          maxRotation: 0,
-          autoSkip: true,
-          maxTicksLimit: 11,
-          callback: (v, i) => rates[i] % 2 === 0 ? rates[i] + '%' : ''
-        },
+        ticks: { color: tickColor, font: { size: 11 }, maxRotation: 0, autoSkip: false,
+          callback: (v, i) => rates[i] % 2 === 0 ? rates[i] + '%' : '' },
         grid: { color: gridColor },
         title: { display: true, text: 'Annual interest rate', color: tickColor, font: { size: 11 } }
       },
       y: {
-        ticks: {
-          color: tickColor,
-          font: { size: 11 },
-          callback: v => fmtClean(v)
-        },
+        ticks: { color: tickColor, font: { size: 11 }, callback: v => fmtClean(v) },
         grid: { color: gridColor },
         title: { display: true, text: 'Maximum loan ($)', color: tickColor, font: { size: 11 } }
       }
     }
   }
 });
-
-let markerLine = null;
 
 function updateMarker(rate) {
   const idx = rates.findIndex(r => Math.abs(r - rate) < 0.01);
@@ -136,14 +150,14 @@ function update() {
   const rate = parseFloat(document.getElementById('rateSlider').value);
   const loan = maxLoan(rate);
   const interest = Math.max(0, PMT * N - loan);
-
   document.getElementById('rateVal').textContent = rate.toFixed(2) + '%';
   document.getElementById('loanAmt').textContent = fmtClean(loan);
   document.getElementById('intAmt').textContent = fmtClean(interest);
-
   updateMarker(rate);
 }
 
 document.getElementById('rateSlider').addEventListener('input', update);
 update();
 </script>
+</body>
+</html>

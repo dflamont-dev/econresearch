@@ -6,7 +6,7 @@
 <title>Rate Amplification — Income-Scaled</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#1a1a1a;padding:20px;max-width:900px;margin:0 auto;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#1a1a1a;padding:20px 16px;max-width:900px;margin:0 auto;}
 h1{font-size:16px;font-weight:500;color:#333;margin-bottom:4px;}
 .sub{font-size:12px;color:#888;margin-bottom:16px;}
 .tog{display:flex;gap:6px;margin-bottom:12px;}
@@ -36,6 +36,8 @@ h1{font-size:16px;font-weight:500;color:#333;margin-bottom:4px;}
 .pg{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:7px 0;}
 .pc{border:1px solid #e5e5e5;border-radius:8px;padding:8px 10px;}
 .fn{font-size:11px;color:#999;margin-top:14px;line-height:1.65;border-top:1px solid #eee;padding-top:12px;}
+.byline{font-size:11px;color:#777;margin-top:10px;line-height:1.6;}
+.byline a{color:#185FA5;}
 @media(max-width:600px){.mc4,.ag,.pg{grid-template-columns:repeat(2,1fr);}.cr{grid-template-columns:1fr;}.lg{grid-template-columns:repeat(3,1fr);}}
 </style>
 </head>
@@ -75,17 +77,19 @@ h1{font-size:16px;font-weight:500;color:#333;margin-bottom:4px;}
 </div>
 
 <div class="fn">
-  <strong>Income-scaled payments</strong> assume ~30% gross debt service ratio on estimated median annual incomes per stratum: Ultra-elite $1.6M/yr → $40,000/mo; Elite $320K/yr → $8,000/mo; Upper $160K/yr → $4,000/mo; Affluent $80K/yr → $2,000/mo; Majority $48K/yr → $1,200/mo. <strong>Credit spreads above base rate:</strong> Ultra-elite +0.50%, Elite +1.25%, Upper +2.50%, Affluent +4.00%, Majority +9.00% (weighted blend of standard, near-prime, subprime and non-qualifying borrowers). <strong>Amplification factor</strong> = ultra-elite dollar gain ÷ majority dollar gain vs 5% benchmark. At 0.25% base in income-scaled mode, ultra-elite gains ~$5.9M vs majority ~$45K ≈ 130×. Fixed-payment mode isolates the spread/rate mechanism alone (~3–4×); income-scaled mode adds payment capacity to reveal total structural amplification. Wealth strata from 80/20 Pareto: top 0.01% = 40% of property; 0.01–0.65% = 11%; 0.65–3.85% = 13%; 3.85–19.85% = 16%; bottom 80% = 20%.
+  <strong>Illustrative calibration.</strong> <strong>Income-scaled payments</strong> assume ~30% gross debt service ratio on estimated median annual incomes per stratum: Ultra-elite $1.6M/yr → $40,000/mo; Elite $320K/yr → $8,000/mo; Upper $160K/yr → $4,000/mo; Affluent $80K/yr → $2,000/mo; Majority $48K/yr → $1,200/mo. <strong>Credit spreads above base rate:</strong> Ultra-elite +0.50%, Elite +1.25%, Upper +2.50%, Affluent +4.00%, Majority +9.00% (weighted blend of standard, near-prime, subprime and non-qualifying borrowers). <strong>Amplification factor</strong> = ultra-elite dollar gain ÷ majority dollar gain vs 5% benchmark. Fixed-payment mode isolates the spread/rate mechanism alone; income-scaled mode adds payment capacity, and its amplification factor is driven largely by the assumed income gap, especially the $1.6M median income assumed for the top 0.16%. <strong>Wealth strata</strong> follow the self-similar 80/20 distribution (α = log 5/log 4; W(p) = p<sup>1−1/α</sup>), disjoint shares of wealth: top 0.16% → 41%; next 0.64% → 10.2%; next 3.2% → 12.8%; next 16% → 16%; bottom 80% → 20% (total 100).
 </div>
+
+<p class="byline">Dougald Lamont · <em>The Rules Are the Game</em> (working paper) · Model and code: <a href="https://github.com/dflamont-dev/econresearch">github.com/dflamont-dev/econresearch</a></p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const N=360,BENCH=5.0;
 const T=[
-  {n:"Ultra-elite",s:"Top 0.01%",  sp:0.50,c:"#042C53",pR:40000,pE:2000,inc:"$1.6M/yr"},
-  {n:"Elite",      s:"0.01–0.65%", sp:1.25,c:"#185FA5",pR:8000, pE:2000,inc:"$320K/yr"},
-  {n:"Upper",      s:"0.65–3.85%", sp:2.50,c:"#0F6E56",pR:4000, pE:2000,inc:"$160K/yr"},
-  {n:"Affluent",   s:"3.85–19.85%",sp:4.00,c:"#BA7517",pR:2000, pE:2000,inc:"$80K/yr"},
+  {n:"Ultra-elite",s:"Top 0.16%",  sp:0.50,c:"#042C53",pR:40000,pE:2000,inc:"$1.6M/yr"},
+  {n:"Elite",      s:"0.16–0.8%",  sp:1.25,c:"#185FA5",pR:8000, pE:2000,inc:"$320K/yr"},
+  {n:"Upper",      s:"0.8–4%",     sp:2.50,c:"#0F6E56",pR:4000, pE:2000,inc:"$160K/yr"},
+  {n:"Affluent",   s:"4–20%",      sp:4.00,c:"#BA7517",pR:2000, pE:2000,inc:"$80K/yr"},
   {n:"Majority",   s:"Bottom 80%", sp:9.00,c:"#A32D2D",pR:1200, pE:2000,inc:"$48K/yr"},
 ];
 let mode='equal';
@@ -142,7 +146,7 @@ function buildGain(rate){
   const bv=T.map(t=>ml(BENCH,t,pm(t)));
   const cv=T.map(t=>ml(rate,t,pm(t)));
   const gains=cv.map((c,i)=>c-bv[i]);
-  const mx=Math.max(...gains.map(Math.abs),1);
+  const mx=Math.max(...gains.map(Math.abs),10000);
   gC=new Chart(ctx,{
     type:'bar',
     data:{labels:T.map(t=>t.n),datasets:[{label:'Gain vs 5%',data:gains,backgroundColor:gains.map((g,i)=>g>=0?T[i].c:'#aaaaaa'),borderRadius:4}]},
@@ -162,7 +166,7 @@ function updateGain(rate){
   const bv=T.map(t=>ml(BENCH,t,pm(t)));
   const cv=T.map(t=>ml(rate,t,pm(t)));
   const gains=cv.map((c,i)=>c-bv[i]);
-  const mx=Math.max(...gains.map(Math.abs),1);
+  const mx=Math.max(...gains.map(Math.abs),10000);
   gC.data.datasets[0].data=gains;
   gC.data.datasets[0].backgroundColor=gains.map((g,i)=>g>=0?T[i].c:'#aaaaaa');
   gC.options.scales.y.suggestedMax=mx*1.12;
@@ -181,7 +185,7 @@ function updateMets(rate){
     <div class="mc"><p class="ml">Ultra-elite max loan</p><p class="mv" style="color:#185FA5">${fmt(top)}</p><p class="ms">Rate ${(rate+T[0].sp).toFixed(2)}% · pmt ${mode==='scaled'?'$40K/mo':'$2K/mo'}</p></div>
     <div class="mc"><p class="ml">Majority max loan</p><p class="mv" style="color:#A32D2D">${fmt(bot)}</p><p class="ms">Rate ${(rate+T[4].sp).toFixed(2)}% · pmt ${mode==='scaled'?'$1.2K/mo':'$2K/mo'}</p></div>
     <div class="mc"><p class="ml">Dollar gap</p><p class="mv">${fmt(top-bot)}</p><p class="ms">${mode==='scaled'?'Spread + payment capacity':'Spread effect only'}</p></div>
-    <div class="mc"><p class="ml">Rate-cut amplification</p><p class="mv" style="color:${ampCol}">${ampStr}</p><p class="ms">Elite gain ÷ majority gain vs 5%</p></div>`;
+    <div class="mc"><p class="ml">Rate-cut amplification</p><p class="mv" style="color:${ampCol}">${ampStr}</p><p class="ms">Ultra-elite gain ÷ majority gain vs 5%</p></div>`;
 }
 
 function updateAG(rate){

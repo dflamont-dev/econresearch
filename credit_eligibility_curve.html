@@ -96,7 +96,8 @@ canvas{display:block;width:100%;}
 <div class="stat4" id="stat4"></div>
 <div class="xover-detail" id="xoverDetail"></div>
 <div class="fn">
-  <strong>Model.</strong> Loan: $15,000, 60-month term. Monthly payment = P × r × (1+r)⁶⁰ / ((1+r)⁶⁰ − 1) where r = (base + credit_spread) / 12 / 100. Eligibility threshold: monthly payment ≤ 15% of gross monthly income (a standard car-payment-to-income guideline used by Canadian and US lenders). Credit spreads above base rate are modelled as a continuous, monotonically decreasing function of population percentile, calibrated to observed Canadian auto-lending markets: bottom 10% face spreads of ~19–25pp (subprime/deep-subprime auto); median borrower ~9.5pp; top 10% ~3pp; top 1% ~2pp. Income distribution: approximate individual gross income distribution for Canada (2020, Statistics Canada). Person icons: each represents 1% of the working population. Eligible (green) = income sufficient to qualify at their effective rate. Ineligible (grey) = income below the threshold. Eligibility boundary shifts as base rate changes; credit spread structure does not change (it is set by lenders based on credit risk, independent of the base rate).
+  <strong>Model (illustrative calibration).</strong> Loan: $15,000, 60-month term. Monthly payment = P × r × (1+r)⁶⁰ / ((1+r)⁶⁰ − 1) where r = (base + credit_spread) / 12 / 100. Eligibility threshold: monthly payment ≤ 15% of gross monthly income (a standard car-payment-to-income guideline used by Canadian and US lenders). Credit spreads above base rate are modelled as a continuous, monotonically decreasing function of population percentile, calibrated to observed Canadian auto-lending markets: bottom 10% face spreads of ~19–25pp (subprime/deep-subprime auto); median borrower ~9.5pp; top 10% ~3pp; top 1% ~2pp. Income distribution: approximate individual gross income distribution for Canada (2020, Statistics Canada). Person icons: each represents 1% of the working population. Eligible (green) = income sufficient to qualify at their effective rate. Ineligible (grey figures, red zone) = income below the threshold. Eligibility boundary shifts as base rate changes; credit spread structure does not change (it is set by lenders based on credit risk, independent of the base rate).
+  <p style="margin-top:8px;">Dougald Lamont · <em>The Rules Are the Game</em> (working paper) · Model and code: <a href="https://github.com/dflamont-dev/econresearch" style="color:var(--req);">github.com/dflamont-dev/econresearch</a></p>
 </div>
 
 <script>
@@ -173,8 +174,9 @@ const DPR = window.devicePixelRatio || 1;
 let dims  = { W:0, H:0 };
 
 function setupCanvas() {
-  const W = cv.parentElement.clientWidth;
-  const H = Math.round(W * 0.50);
+  const par = cv.parentElement, cs = getComputedStyle(par);
+  const W = Math.floor(par.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  const H = Math.max(360, Math.round(W * 0.50));
   cv.width = W*DPR; cv.height = H*DPR;
   cv.style.width = W+'px'; cv.style.height = H+'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -184,7 +186,7 @@ function setupCanvas() {
 function draw(base) {
   setupCanvas();
   const { W, H } = dims;
-  const pad = { top:30, right:30, bottom:84, left:96 };
+  const pad = { top:30, right:30, bottom:100, left:96 };
   const cW = W-pad.left-pad.right;
   const cH = H-pad.top-pad.bottom;
   const Y_MAX = 80000;

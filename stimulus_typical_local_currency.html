@@ -61,6 +61,7 @@ canvas{display:block;width:100%;height:100%;}
 .li{display:flex;align-items:center;gap:5px;}
 .lsq{width:11px;height:11px;border-radius:2px;}
 
+@media(max-width:760px){body{padding:24px 16px 32px;}.chart-wrap{grid-template-columns:1fr;}.corr-strip{flex-wrap:wrap;}.ci{flex:1 1 30%;}.tbl-wrap{overflow-x:auto;}}
 .fn{font-size:11px;color:var(--mut);margin-top:20px;border-top:1px solid var(--brd);padding-top:14px;line-height:1.75;max-width:880px;}
 </style>
 </head>
@@ -69,18 +70,15 @@ canvas{display:block;width:100%;height:100%;}
 <h1>Pandemic Stimulus — <em>Typical household gain, in local currency</em></h1>
 
 <p class="intro">
-  All figures in <strong>local currency</strong>. Each row shows what the <strong>typical (median) household within that tier</strong>
-  gained — corrected for the within-tier power-law skew. The "% of median income" column shows
-  the gain as a multiple of the national median annual income. The bar charts use <strong>actual dollar amounts</strong> — no log scale.
+  All figures in <strong>local currency</strong>. Each row shows what the <strong>typical (median) household within that wealth tier</strong>
+  gained, corrected for the skew within each tier. The "years of median income" column shows the gain as a multiple of the national median
+  annual income. The bar charts use <strong>actual amounts</strong>, with no log scale. The ordering of gains across tiers follows from the lending
+  formula; the dollar magnitudes depend on two estimates explained below.
 </p>
 
-<div class="corr-strip">
-  <div class="ci"><div class="ci-tier">Bottom 80%</div><div class="ci-val" style="color:#4bbf8e">0.86×</div><div class="ci-note">typical is 86%<br>of mean</div></div>
-  <div class="ci"><div class="ci-tier">Next 16%</div><div class="ci-val" style="color:#5b9bd5">0.86×</div><div class="ci-note">typical is 86%<br>of mean</div></div>
-  <div class="ci"><div class="ci-tier">Next 3.2%</div><div class="ci-val" style="color:#b07fd4">0.83×</div><div class="ci-note">typical is 83%<br>of mean</div></div>
-  <div class="ci"><div class="ci-tier">Next 0.64%</div><div class="ci-val" style="color:#e8b84b">0.56×</div><div class="ci-note">typical is 56%<br>of mean</div></div>
-  <div class="ci"><div class="ci-tier">Top 0.01%</div><div class="ci-val" style="color:#e05c4b">0.29×</div><div class="ci-note">typical is 29%<br>of mean</div></div>
-</div>
+<div class="ctabs" id="calib"></div>
+
+<div class="corr-strip" id="corrStrip"></div>
 
 <div class="ctabs" id="ctabs"></div>
 
@@ -100,9 +98,9 @@ canvas{display:block;width:100%;height:100%;}
   </div>
   <div class="chart-box">
     <div class="chart-title" id="ct2"></div>
-    <div class="chart-note">Combined gain as % of national median annual income — how many years of income each tier received.</div>
+    <div class="chart-note">Combined gain divided by national median annual income: how many years of income each tier received.</div>
     <div class="chart-canvas"><canvas id="c2"></canvas></div>
-    <div class="leg"><div class="li"><span class="lsq" style="background:#9b6fcc"></span>Years of median income</div></div>
+    <div class="leg"><div class="li"><span class="lsq" style="background:#9b6fcc"></span>Years of median income, by tier colour</div></div>
   </div>
 </div>
 
@@ -110,66 +108,71 @@ canvas{display:block;width:100%;height:100%;}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-const CORR = [0.861, 0.861, 0.832, 0.557, 0.287];
-
+// Six disjoint wealth tiers (shares of households), richest first in the model, displayed bottom-up.
 const TIERS = [
-  { label:'Bottom 80%',  pctile:'0–80th',          color:'#4bbf8e', pop:0.80   },
-  { label:'Next 16%',    pctile:'80th–96th',        color:'#5b9bd5', pop:0.16   },
-  { label:'Next 3.2%',   pctile:'96th–99.35th',     color:'#b07fd4', pop:0.032  },
-  { label:'Next 0.64%',  pctile:'99.35th–99.99th',  color:'#e8b84b', pop:0.0064 },
-  { label:'Top 0.01%',   pctile:'99.99th–100th',    color:'#e05c4b', pop:0.0001 },
+  { label:'Bottom 80%',  pctile:'0–80th',          color:'#4bbf8e', pop:0.80,   lo:0.0,    hi:0.80   },
+  { label:'Next 16%',    pctile:'80th–96th',       color:'#5b9bd5', pop:0.16,   lo:0.80,   hi:0.96   },
+  { label:'Next 3.2%',   pctile:'96th–99.2th',     color:'#b07fd4', pop:0.032,  lo:0.96,   hi:0.992  },
+  { label:'Next 0.64%',  pctile:'99.2th–99.84th',  color:'#e8b84b', pop:0.0064, lo:0.992,  hi:0.9984 },
+  { label:'Next 0.15%',  pctile:'99.84th–99.99th', color:'#f08a4b', pop:0.0015, lo:0.9984, hi:0.9999 },
+  { label:'Top 0.01%',   pctile:'99.99th–100th',   color:'#e05c4b', pop:0.0001, lo:0.9999, hi:1.0    },
 ];
 
-const FISCAL_SHARE   = [0.55, 0.22, 0.12, 0.07, 0.04];
-const MONETARY_SHARE = [0.20, 0.17, 0.13, 0.12, 0.38];
+// Calibrations of the Pareto shape. 80/20: alpha = log5/log4 (top 1% hold ~53%).
+// PBO: alpha fitted so the top 1% hold 25.6% of wealth (Parliamentary Budget Officer 2020, Canada).
+const CALIBS = [
+  { id:'8020', name:'80/20 calibration', alpha: Math.log(5)/Math.log(4) },
+  { id:'pbo',  name:'PBO calibration (top 1% = 25.6%)', alpha: 1/(1 - Math.log(0.256)/Math.log(0.01)) },
+];
 
+// Author's assumed fiscal tier shares (bottom 80 → top 0.16%); the top 0.16% share is split
+// between its two sub-tiers in proportion to their wealth (80/20 shares).
+const FISCAL_BASE = [0.55, 0.22, 0.12, 0.07];
+const TOP_FISCAL = 0.04;
+
+// Totals in local currency: fiscal = federal/national pandemic response;
+// monetary = author's estimate of household wealth gains attributable to the easing (60–70% attribution, net of 2022–23 reversal).
 const COUNTRIES = [
-  {
-    id:'CA', name:'Canada', flag:'🇨🇦', currency:'CAD', sym:'C$', fx:0.785, color:'#e05c4b',
-    fiscalUSD:272, monetaryUSD:1963,
-    households:[11600000, 2320000, 464000, 92800, 1450],
-    medianIncomeLocal:52000,
-  },
-  {
-    id:'US', name:'United States', flag:'🇺🇸', currency:'USD', sym:'$', fx:1.0, color:'#5b9bd5',
-    fiscalUSD:5300, monetaryUSD:22000,
-    households:[105600000, 21120000, 4224000, 844800, 13200],
-    medianIncomeLocal:67000,
-  },
-  {
-    id:'UK', name:'United Kingdom', flag:'🇬🇧', currency:'GBP', sym:'£', fx:1.30, color:'#c07acc',
-    fiscalUSD:520, monetaryUSD:1430,
-    households:[22400000, 4480000, 896000, 179200, 2800],
-    medianIncomeLocal:32000,
-  },
-  {
-    id:'AU', name:'Australia', flag:'🇦🇺', currency:'AUD', sym:'A$', fx:0.755, color:'#4bbf8e',
-    fiscalUSD:211, monetaryUSD:1510,
-    households:[8400000, 1680000, 336000, 67200, 1050],
-    medianIncomeLocal:63000,
-  },
-  {
-    id:'NZ', name:'New Zealand', flag:'🇳🇿', currency:'NZD', sym:'NZ$', fx:0.700, color:'#e8b84b',
-    fiscalUSD:63, monetaryUSD:196,
-    households:[1440000, 288000, 57600, 11520, 180],
-    medianIncomeLocal:56000,
-  },
+  { id:'CA', name:'Canada',         flag:'🇨🇦', currency:'CAD', sym:'C$',  color:'#e05c4b', fiscal:346e9,  monetary:2500e9,  H:14.5e6, medianIncomeLocal:52000 },
+  { id:'US', name:'United States',  flag:'🇺🇸', currency:'USD', sym:'$',   color:'#5b9bd5', fiscal:5.3e12,  monetary:22.0e12, H:132e6,  medianIncomeLocal:67000 },
+  { id:'UK', name:'United Kingdom', flag:'🇬🇧', currency:'GBP', sym:'£',   color:'#c07acc', fiscal:400e9,  monetary:1100e9,  H:28e6,   medianIncomeLocal:32000 },
+  { id:'AU', name:'Australia',      flag:'🇦🇺', currency:'AUD', sym:'A$',  color:'#4bbf8e', fiscal:280e9,  monetary:2000e9,  H:10.5e6, medianIncomeLocal:63000 },
+  { id:'NZ', name:'New Zealand',    flag:'🇳🇿', currency:'NZD', sym:'NZ$', color:'#e8b84b', fiscal:90e9,   monetary:280e9,   H:1.8e6,  medianIncomeLocal:56000 },
 ];
 
-function typLocal(c, ti, type) {
-  // USD total for tier
-  const share = type==='fiscal' ? FISCAL_SHARE[ti] : MONETARY_SHARE[ti];
-  const total  = type==='fiscal' ? c.fiscalUSD : c.monetaryUSD;
-  const meanUSD = (total * 1e9 * share) / c.households[ti];
-  const typUSD  = meanUSD * CORR[ti];
-  // convert to local
-  return typUSD / c.fx;
+// Model state for the active calibration
+let calib = CALIBS[0];
+let SH = [], CF = [], FS = [];
+
+function setupModel(a) {
+  const W = u => Math.pow(u, 1 - 1/a);         // wealth share held by the top fraction u
+  SH = TIERS.map(t => W(1 - t.lo) - (t.hi < 1 ? W(1 - t.hi) : 0));
+  // Within-tier median ÷ mean, wealth level ∝ u^(-1/a); numerical integration as in the paper's Appendix.
+  CF = TIERS.map(t => {
+    const u1 = Math.max(1 - t.hi, 1e-14), u2 = 1 - t.lo, m = 20000;
+    const lo = Math.log(u1), hi = Math.log(u2), dt = (hi - lo) / m;
+    let sum = 0;
+    for (let k = 0; k < m; k++) { const u = Math.exp(lo + (k + .5) * dt); sum += Math.pow(0.5/u, 1/a) * u * dt; }
+    const mean = sum / (u2 - u1);
+    const pm = t.hi < 1 ? (t.lo + t.hi) / 2 : (1 + t.lo) / 2;
+    return Math.pow(0.5 / (1 - pm), 1/a) / mean;
+  });
+  const a8020 = CALIBS[0].alpha, W8 = u => Math.pow(u, 1 - 1/a8020);
+  const topSplit = W8(0.0001) / W8(0.0016);
+  FS = [...FISCAL_BASE, TOP_FISCAL * (1 - topSplit), TOP_FISCAL * topSplit];
 }
+
+function hh(c, ti)  { return c.H * TIERS[ti].pop; }
+function meanLocal(c, ti, type) {
+  return type === 'fiscal' ? c.fiscal * FS[ti] / hh(c, ti) : c.monetary * SH[ti] / hh(c, ti);
+}
+function typLocal(c, ti, type) { return meanLocal(c, ti, type) * CF[ti]; }
 
 function fmtL(v, sym) {
   const a = Math.abs(v);
   let s;
-  if (a >= 1e9)      s = sym + (a/1e9).toFixed(2)+'B';
+  if (a >= 1e12)     s = sym + (a/1e12).toFixed(2)+'T';
+  else if (a >= 1e9) s = sym + (a >= 1e11 ? Math.round(a/1e9).toLocaleString() : (a/1e9).toFixed(1))+'B';
   else if (a >= 1e6) s = sym + (a/1e6).toFixed(2)+'M';
   else if (a >= 1e5) s = sym + Math.round(a/1e3).toLocaleString()+'K';
   else if (a >= 1e3) s = sym + Math.round(a).toLocaleString();
@@ -177,15 +180,15 @@ function fmtL(v, sym) {
   return v<0?'−'+s:s;
 }
 
-function pctIncome(v, med) {
+function yearsIncome(v, med) {
   const m = v / med;
-  if (m >= 100)  return m.toFixed(0)+'× income';
-  if (m >= 10)   return m.toFixed(1)+'× income';
-  if (m >= 1)    return m.toFixed(2)+'× income';
-  return (m*100).toFixed(1)+'% of income';
+  if (m >= 100) return Math.round(m).toLocaleString();
+  if (m >= 10)  return m.toFixed(1);
+  return m.toFixed(2);
 }
 
 let active = COUNTRIES[0];
+setupModel(calib.alpha);
 let c1inst = null, c2inst = null;
 
 function buildTable(c) {
@@ -196,7 +199,7 @@ function buildTable(c) {
       <th class="f">Fiscal<br>typical HH</th>
       <th class="m">Monetary<br>typical HH</th>
       <th class="tot">Combined<br>typical HH</th>
-      <th>As % of<br>median income</th>
+      <th>Years of<br>median income</th>
       <th class="dim">Fiscal<br>mean (uncorrected)</th>
       <th class="dim">Monetary<br>mean (uncorrected)</th>
     </tr>`;
@@ -206,17 +209,17 @@ function buildTable(c) {
     const fT = typLocal(c, ti, 'fiscal');
     const mT = typLocal(c, ti, 'monetary');
     const tot = fT + mT;
-    const fM = (c.fiscalUSD * 1e9 * FISCAL_SHARE[ti]) / c.households[ti] / c.fx;
-    const mM = (c.monetaryUSD * 1e9 * MONETARY_SHARE[ti]) / c.households[ti] / c.fx;
-    const incStr = pctIncome(tot, c.medianIncomeLocal);
-    const bg = ti===4 ? 'background:rgba(224,92,75,0.08);' : '';
+    const fM = meanLocal(c, ti, 'fiscal');
+    const mM = meanLocal(c, ti, 'monetary');
+    const incStr = yearsIncome(tot, c.medianIncomeLocal);
+    const bg = ti===TIERS.length-1 ? 'background:rgba(224,92,75,0.08);' : '';
 
     rows += `<tr style="${bg}">
       <td>
         <span class="tier-label" style="color:${tier.color}">${tier.label}</span>
         <span class="tier-sub">${tier.pctile} percentile</span>
       </td>
-      <td class="dim">${c.households[ti].toLocaleString()}</td>
+      <td class="dim">${Math.round(hh(c,ti)).toLocaleString()}</td>
       <td class="f">${fmtL(fT, c.sym)}</td>
       <td class="m">${fmtL(mT, c.sym)}</td>
       <td class="tot">${fmtL(tot, c.sym)}</td>
@@ -226,16 +229,13 @@ function buildTable(c) {
     </tr>`;
   });
 
-  // Totals row — sum of typical (note: not additive across tiers in strict sense, but useful as summary)
-  const totF = TIERS.reduce((_,ti) => _ + typLocal(c, ti, 'fiscal'),   0);
-  const totM = TIERS.reduce((_,ti) => _ + typLocal(c, ti, 'monetary'), 0);
   rows += `<tr class="total-row">
-    <td><strong>All tiers — sum</strong><br><span class="tier-sub">Sum across tiers (illustrative)</span></td>
-    <td class="dim">—</td>
-    <td class="f">${fmtL(totF, c.sym)}</td>
-    <td class="m">${fmtL(totM, c.sym)}</td>
-    <td class="tot">${fmtL(totF+totM, c.sym)}</td>
-    <td class="dim">—</td>
+    <td><strong>All households — totals</strong><br><span class="tier-sub">Aggregate ${c.currency}</span></td>
+    <td class="dim">${Math.round(c.H).toLocaleString()}</td>
+    <td class="f">${fmtL(c.fiscal, c.sym)}</td>
+    <td class="m">${fmtL(c.monetary, c.sym)}</td>
+    <td class="tot">${fmtL(c.fiscal + c.monetary, c.sym)}</td>
+    <td class="dim">monetary ÷ fiscal ${(c.monetary/c.fiscal).toFixed(1)}×</td>
     <td class="dim">—</td>
     <td class="dim">—</td>
   </tr>`;
@@ -302,14 +302,14 @@ function buildCharts(c) {
   });
 
   document.getElementById('ct2').textContent =
-    `${c.flag} ${c.name} — combined gain as multiple of median annual income (${c.currency} ${(c.medianIncomeLocal/1000).toFixed(0)}K)`;
+    `${c.flag} ${c.name} — combined gain in years of median income (${c.currency} ${(c.medianIncomeLocal/1000).toFixed(0)}K)`;
 
   c2inst = new Chart(makeCanvas('c2'), {
     type:'bar',
     data:{
       labels,
       datasets:[{
-        label:'× median income',
+        label:'Years of median income',
         data: incVals,
         backgroundColor: colors.map(col => col+'aa'),
         borderColor: colors,
@@ -326,51 +326,69 @@ function buildCharts(c) {
           title: items => `${c.flag} ${c.name} — ${labels[items[0].dataIndex]}`,
           label: item => {
             const v = item.parsed.y;
-            if (v>=1) return `  ${v.toFixed(1)}× national median income`;
-            return `  ${(v*100).toFixed(1)}% of national median income`;
+            return `  ${yearsIncome(v,1)} years of national median income`;
           },
         }},
       },
       scales:{
         x:{ ticks:{color:tc,font:{size:10.5}}, grid:{display:false} },
-        y:{ ticks:{color:tc,font:{size:9.5},callback:v=>v>=1?v.toFixed(1)+'×':(v*100).toFixed(0)+'%'}, grid:{color:gc},
-            title:{display:true,text:'× median annual income',color:tc,font:{size:9.5}} }
+        y:{ ticks:{color:tc,font:{size:9.5},callback:v=>v.toLocaleString()}, grid:{color:gc},
+            title:{display:true,text:'Years of median annual income',color:tc,font:{size:9.5}} }
       }
     }
   });
 }
 
 function buildFn(c) {
-  const bot80F = fmtL(typLocal(c,0,'fiscal'),   c.sym);
-  const bot80M = fmtL(typLocal(c,0,'monetary'), c.sym);
-  const bot80T = fmtL(typLocal(c,0,'fiscal')+typLocal(c,0,'monetary'), c.sym);
-  const top01F = fmtL(typLocal(c,4,'fiscal'),   c.sym);
-  const top01M = fmtL(typLocal(c,4,'monetary'), c.sym);
-  const top01T = fmtL(typLocal(c,4,'fiscal')+typLocal(c,4,'monetary'), c.sym);
-  const top01Inc = ((typLocal(c,4,'fiscal')+typLocal(c,4,'monetary'))/c.medianIncomeLocal).toFixed(0);
-  const bot80Inc = (((typLocal(c,0,'fiscal')+typLocal(c,0,'monetary'))/c.medianIncomeLocal)*100).toFixed(1);
+  const B = 0, T = TIERS.length - 1;
+  const bT = typLocal(c,B,'fiscal') + typLocal(c,B,'monetary');
+  const tT = typLocal(c,T,'fiscal') + typLocal(c,T,'monetary');
+  const ratio = typLocal(c,T,'monetary') / typLocal(c,B,'monetary');
   document.getElementById('fn').innerHTML = `
-    <strong>Reading this for ${c.flag} ${c.name}.</strong>
-    A typical household in the bottom 80% received ${bot80F} in fiscal transfers and ${bot80M} in monetary wealth gains —
-    combined ${bot80T}, equivalent to about ${bot80Inc}% of the national median annual income.
-    A typical household in the top 0.01% received ${top01F} fiscal and ${top01M} monetary —
-    combined ${top01T}, equivalent to approximately ${top01Inc} years of median income.
+    <strong>Reading this for ${c.flag} ${c.name} (${calib.name}).</strong>
+    A typical household in the bottom 80% received ${fmtL(typLocal(c,B,'fiscal'), c.sym)} in fiscal transfers and
+    ${fmtL(typLocal(c,B,'monetary'), c.sym)} in monetary wealth gains, combined ${fmtL(bT, c.sym)}, about
+    ${yearsIncome(bT, c.medianIncomeLocal)} years of median income. A typical household in the top 0.01%
+    (${Math.round(hh(c,T)).toLocaleString()} households) received ${fmtL(typLocal(c,T,'fiscal'), c.sym)} fiscal and
+    ${fmtL(typLocal(c,T,'monetary'), c.sym)} monetary, combined ${fmtL(tT, c.sym)}, about
+    ${yearsIncome(tT, c.medianIncomeLocal)} years of median income. The monetary gain ratio, top 0.01% to bottom 80%,
+    is about ${Math.round(ratio/10)*10 >= 1000 ? (Math.round(ratio/50)*50).toLocaleString() : Math.round(ratio)}:1.
     <br><br>
-    <strong>Note on the bar charts.</strong> Using actual (linear scale) values on the left chart honestly shows
-    that the bottom 80% bar is a sliver at the base. This is the correct visual impression: the absolute dollar
-    gains for the bottom 80% are small, and the gains for the top tiers are large — the charts should look this way.
-    The right chart (income multiples) reframes the same data relative to what income means to each tier.
+    <strong>What is computed and what is estimated.</strong> The ordering of gains across tiers follows from the lending formula
+    and is fixed before any price moves. The dollar magnitudes rest on two estimates: the share of the 2020–21 revaluation of household
+    assets attributed to the easing (the author attributes 60–70%, net of the 2022–23 reversal), and its distribution across households,
+    taken as proportional to existing holdings under a recursive Pareto distribution. The 80/20 calibration (α = log 5/log 4) gives the top 1%
+    about 53% of wealth, steeper than the Parliamentary Budget Officer's 25.6% estimate for Canada (2020); the PBO calibration
+    (α ≈ ${CALIBS[1].alpha.toFixed(2)}) is shown as the conservative bound and applied to all five countries for comparison.
     <br><br>
-    <strong>Correction factors</strong> derived from Pareto α = 1.161 (80/20 distribution).
-    Within-tier typical = median of tier = W(mid-percentile of tier).
-    Correction ratios: 0.86× (bottom 80%), 0.86× (next 16%), 0.83× (next 3.2%), 0.56× (next 0.64%), 0.29× (top 0.01%).
-    Fiscal and monetary totals unchanged from main table; only per-household presentation corrected.
-    Median income (${c.currency}): ${c.medianIncomeLocal.toLocaleString()} / year.`;
+    <strong>Method.</strong> Six disjoint tiers covering all households. Monetary tier totals = aggregate × tier wealth share,
+    W(p) = p<sup>1−1/α</sup>. Fiscal tier shares are the author's assumption (bottom 80% 55%, next 16% 22%, next 3.2% 12%, next 0.64% 7%,
+    top 0.16% 4%, split between its sub-tiers in proportion to wealth). Typical household = tier median, from the within-tier
+    median ÷ mean ratio shown above the table. Aggregates: fiscal ${fmtL(c.fiscal, c.sym)}; monetary ${fmtL(c.monetary, c.sym)}
+    (${(c.monetary/c.fiscal).toFixed(1)}× fiscal). Median income ${c.sym}${c.medianIncomeLocal.toLocaleString()} / year. Author's estimates.
+    <br><br>
+    Dougald Lamont · <em>The Rules Are the Game</em> (working paper) · Model and code:
+    <a href="https://github.com/dflamont-dev/econresearch" style="color:var(--fiscal);">github.com/dflamont-dev/econresearch</a>`;
+}
+
+function buildCorr() {
+  document.getElementById('corrStrip').innerHTML = TIERS.map((t, ti) => `
+    <div class="ci"><div class="ci-tier">${t.label}</div><div class="ci-val" style="color:${t.color}">${CF[ti].toFixed(2)}×</div>
+    <div class="ci-note">typical is ${Math.round(CF[ti]*100)}%<br>of mean</div></div>`).join('');
+}
+
+function setCalib(k) {
+  calib = k; setupModel(k.alpha); buildCorr();
+  document.querySelectorAll('#calib .ctab').forEach(el => {
+    const on = el.dataset.id === k.id;
+    el.classList.toggle('on', on); el.style.color = on ? 'var(--txt)' : ''; el.style.borderColor = on ? 'var(--txt)' : '';
+  });
+  setCountry(active);
 }
 
 function setCountry(c) {
   active = c;
-  document.querySelectorAll('.ctab').forEach(el => {
+  document.querySelectorAll('#ctabs .ctab').forEach(el => {
     const on = el.dataset.id === c.id;
     el.classList.toggle('on', on);
     el.style.borderColor = on ? c.color : '';
@@ -389,7 +407,14 @@ COUNTRIES.forEach(c => {
   tabsEl.appendChild(btn);
 });
 
-setCountry(COUNTRIES[0]);
+const calEl = document.getElementById('calib');
+CALIBS.forEach(k => {
+  const btn = document.createElement('button');
+  btn.className = 'ctab'; btn.dataset.id = k.id; btn.textContent = k.name;
+  btn.addEventListener('click', () => setCalib(k));
+  calEl.appendChild(btn);
+});
+setCalib(CALIBS[0]);
 window.addEventListener('resize', () => { buildCharts(active); });
 </script>
 </body>
